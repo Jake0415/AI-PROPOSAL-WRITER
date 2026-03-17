@@ -1,143 +1,169 @@
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Zap, Shield, Palette, Code, Rocket, Users } from "lucide-react"
+'use client';
 
-export default function Home() {
+import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Plus, FileText, Clock, CheckCircle2 } from 'lucide-react';
+import { ProjectCard } from '@/components/project/project-card';
+
+interface Project {
+  id: string;
+  title: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  uploaded: 'RFP 업로드됨',
+  analyzing: '분석 중',
+  direction_set: '방향 설정됨',
+  strategy_set: '전략 수립됨',
+  outline_ready: '목차 구성됨',
+  generating: '내용 생성 중',
+  completed: '완료',
+};
+
+export default function DashboardPage() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isCreating, setIsCreating] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  async function fetchProjects() {
+    try {
+      const res = await fetch('/api/projects');
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data.data ?? []);
+      }
+    } catch {
+      // API가 아직 없을 수 있음
+    }
+  }
+
+  async function handleCreate() {
+    if (!newTitle.trim()) return;
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle.trim() }),
+      });
+      if (res.ok) {
+        setNewTitle('');
+        setIsCreating(false);
+        fetchProjects();
+      }
+    } catch {
+      // 에러 처리
+    }
+  }
+
+  const inProgress = projects.filter((p) => p.status !== 'completed').length;
+  const completed = projects.filter((p) => p.status === 'completed').length;
+
   return (
-    <div className="flex flex-col">
-      {/* Hero Section */}
-      <section className="container max-w-screen-2xl px-4 py-24 mx-auto">
-        <div className="flex flex-col items-center text-center space-y-8">
-          <div className="space-y-4">
-            <Badge variant="secondary" className="text-sm">
-              ⚡ Next.js v15 + TailwindCSS v4
-            </Badge>
-            <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
-              빠른 웹 개발을 위한
-              <br />
-              <span className="text-primary">최신 스타터 킷</span>
-            </h1>
-            <p className="max-w-2xl text-lg text-muted-foreground">
-              Next.js v15, TypeScript, TailwindCSS v4, shadcn/ui로 구성된 
-              현대적인 웹 개발 스타터 킷입니다. 
-              몇 분 만에 프로젝트를 시작하세요.
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button size="lg" className="text-lg px-8">
-              <Rocket className="mr-2 h-5 w-5" />
-              시작하기
-            </Button>
-            <Button variant="outline" size="lg" className="text-lg px-8">
-              <Code className="mr-2 h-5 w-5" />
-              GitHub 보기
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="container max-w-screen-2xl px-4 py-24 mx-auto">
-        <div className="text-center space-y-4 mb-16">
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            모든 것이 준비되어 있습니다
-          </h2>
-          <p className="max-w-2xl mx-auto text-lg text-muted-foreground">
-            최신 기술 스택으로 구성된 완전한 개발 환경을 제공합니다.
+    <div className="container mx-auto max-w-screen-2xl px-4 py-8">
+      {/* 헤더 */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">대시보드</h1>
+          <p className="text-muted-foreground mt-1">
+            RFP를 업로드하고 AI가 제안서를 자동 생성합니다
           </p>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <Card className="border-border/40 hover:border-border transition-colors">
-            <CardHeader>
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                <Zap className="h-6 w-6 text-primary" />
-              </div>
-              <CardTitle>최고 성능</CardTitle>
-              <CardDescription>
-                Next.js v15의 App Router와 Turbopack으로 최적화된 개발 환경
-              </CardDescription>
-            </CardHeader>
-          </Card>
+        <Button onClick={() => setIsCreating(true)}>
+          <Plus className="mr-2 h-4 w-4" />새 프로젝트
+        </Button>
+      </div>
 
-          <Card className="border-border/40 hover:border-border transition-colors">
-            <CardHeader>
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                <Palette className="h-6 w-6 text-primary" />
-              </div>
-              <CardTitle>모던 디자인</CardTitle>
-              <CardDescription>
-                TailwindCSS v4와 shadcn/ui로 구성된 아름다운 UI 컴포넌트
-              </CardDescription>
-            </CardHeader>
-          </Card>
+      {/* 통계 카드 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">전체 프로젝트</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <div className="px-6 pb-4">
+            <div className="text-2xl font-bold">{projects.length}</div>
+          </div>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">진행 중</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <div className="px-6 pb-4">
+            <div className="text-2xl font-bold">{inProgress}</div>
+          </div>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">완료</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <div className="px-6 pb-4">
+            <div className="text-2xl font-bold">{completed}</div>
+          </div>
+        </Card>
+      </div>
 
-          <Card className="border-border/40 hover:border-border transition-colors">
-            <CardHeader>
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                <Shield className="h-6 w-6 text-primary" />
-              </div>
-              <CardTitle>타입 안전성</CardTitle>
-              <CardDescription>
-                TypeScript로 구성된 안전하고 확장 가능한 코드베이스
-              </CardDescription>
-            </CardHeader>
-          </Card>
+      {/* 새 프로젝트 생성 폼 */}
+      {isCreating && (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>새 프로젝트 생성</CardTitle>
+            <CardDescription>제안서를 작성할 프로젝트 제목을 입력하세요</CardDescription>
+          </CardHeader>
+          <div className="px-6 pb-6 flex gap-3">
+            <input
+              type="text"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+              placeholder="예: 2026년 공공 클라우드 전환 사업 제안"
+              className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              autoFocus
+            />
+            <Button onClick={handleCreate}>생성</Button>
+            <Button variant="outline" onClick={() => setIsCreating(false)}>
+              취소
+            </Button>
+          </div>
+        </Card>
+      )}
 
-          <Card className="border-border/40 hover:border-border transition-colors">
-            <CardHeader>
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                <Code className="h-6 w-6 text-primary" />
-              </div>
-              <CardTitle>개발자 경험</CardTitle>
-              <CardDescription>
-                ESLint, Prettier, 다크모드 등 최적화된 개발 환경
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="border-border/40 hover:border-border transition-colors">
-            <CardHeader>
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                <Rocket className="h-6 w-6 text-primary" />
-              </div>
-              <CardTitle>빠른 시작</CardTitle>
-              <CardDescription>
-                바로 사용 가능한 컴포넌트와 레이아웃으로 즉시 개발 시작
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="border-border/40 hover:border-border transition-colors">
-            <CardHeader>
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                <Users className="h-6 w-6 text-primary" />
-              </div>
-              <CardTitle>커뮤니티</CardTitle>
-              <CardDescription>
-                활발한 커뮤니티와 지속적인 업데이트 지원
-              </CardDescription>
-            </CardHeader>
-          </Card>
+      {/* 프로젝트 목록 */}
+      {projects.length === 0 ? (
+        <Card className="border-dashed">
+          <CardHeader className="text-center py-12">
+            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <CardTitle>프로젝트가 없습니다</CardTitle>
+            <CardDescription>
+              새 프로젝트를 생성하고 RFP를 업로드하여 제안서 작성을 시작하세요
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {projects.map((project) => (
+            <ProjectCard
+              key={project.id}
+              project={project}
+              statusLabel={STATUS_LABELS[project.status] ?? project.status}
+            />
+          ))}
         </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="bg-muted/30 py-24">
-        <div className="container max-w-screen-2xl px-4 mx-auto text-center space-y-8">
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            지금 바로 시작해보세요
-          </h2>
-          <p className="max-w-xl mx-auto text-lg text-muted-foreground">
-            몇 분 만에 현대적인 웹 애플리케이션 개발을 시작할 수 있습니다.
-          </p>
-          <Button size="lg" className="text-lg px-8">
-            <Rocket className="mr-2 h-5 w-5" />
-            시작하기
-          </Button>
-        </div>
-      </section>
+      )}
     </div>
-  )
+  );
 }
