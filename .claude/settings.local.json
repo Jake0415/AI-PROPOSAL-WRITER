@@ -1,9 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch",
       "Bash",
-      "Bash(npm run:*)",
+      "WebFetch",
+      "WebSearch",
       "mcp__sequential-thinking",
       "mcp__shadcn",
       "mcp__shadcn__search_items_in_registries",
@@ -14,7 +14,11 @@
       "mcp__slack__slack_get_channel_history",
       "mcp__slack__slack_get_thread_replies"
     ],
-    "deny": [],
+    "deny": [
+      "Bash(rm:*)",
+      "Bash(git reset:*)",
+      "Bash(git push --force:*)"
+    ],
     "ask": []
   },
   "enableAllProjectMcpServers": true,

@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Next.js Starter Kit",
-  description: "Next.js v15, TypeScript, TailwindCSS v4, shadcn/ui로 구성된 스타터 킷입니다.",
+  title: "AIPROWRITER - AI 제안서 자동 생성",
+  description: "RFP를 업로드하면 AI가 분석하여 완성된 제안서(Word/PPT)를 자동 생성합니다.",
 };
 
 export default function RootLayout({

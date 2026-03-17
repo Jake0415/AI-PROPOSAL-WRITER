@@ -46,3 +46,6 @@ next-env.d.ts
 
 # Shrimp task manager data
 shrimp-data/
+
+# AIPROWRITER data (uploads, outputs, db)
+/data/

@@ -1,5 +1,5 @@
 {
-  "name": "temp",
+  "name": "aiprowriter",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,26 +9,40 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.79.0",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-navigation-menu": "^1.2.14",
     "@radix-ui/react-slot": "^1.2.3",
+    "better-sqlite3": "^12.8.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "docx": "^9.6.1",
+    "docxtemplater": "^3.68.3",
+    "drizzle-orm": "^0.45.1",
     "lucide-react": "^0.543.0",
+    "mammoth": "^1.12.0",
     "next": "15.5.2",
     "next-themes": "^0.4.6",
+    "pdf-parse": "^2.4.5",
+    "pizzip": "^3.2.0",
     "postcss": "^8.5.6",
+    "pptxgenjs": "^4.0.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.1",
+    "uuid": "^13.0.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4.1.13",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
+    "@types/pdf-parse": "^1.1.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
     "tailwindcss": "^4.1.13",

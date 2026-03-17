@@ -9,7 +9,7 @@ export function Navbar() {
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
             <span className="hidden font-bold sm:inline-block">
-              Next.js Starter Kit
+              AIPROWRITER
             </span>
           </Link>
           <nav className="flex items-center gap-4 text-sm lg:gap-6">
@@ -17,19 +17,19 @@ export function Navbar() {
               href="/"
               className="transition-colors hover:text-foreground/80 text-foreground"
             >
-              홈
+              대시보드
             </Link>
             <Link
-              href="/about"
+              href="/templates"
               className="transition-colors hover:text-foreground/80 text-muted-foreground"
             >
-              소개
+              템플릿
             </Link>
             <Link
-              href="/docs"
+              href="/settings"
               className="transition-colors hover:text-foreground/80 text-muted-foreground"
             >
-              문서
+              설정
             </Link>
           </nav>
         </div>
