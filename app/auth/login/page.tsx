@@ -50,8 +50,8 @@ function LoginForm() {
       return;
     }
 
-    router.push(redirectTo);
-    router.refresh();
+    // 전체 페이지 리로드로 미들웨어 세션 쿠키 반영
+    window.location.href = redirectTo;
   }
 
   return (
