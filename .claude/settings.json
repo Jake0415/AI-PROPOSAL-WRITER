@@ -11,7 +11,10 @@
       "Bash(node -e \"const pkg = require\\(''./node_modules/pdf-parse/package.json''\\); console.log\\(''pdf-parse version:'', pkg.version\\)\")",
       "Bash(npx tsc:*)",
       "Bash(node -e \"const p = require\\(''pdf-parse''\\); const inst = new p.PDFParse\\(Buffer.from\\(''''\\)\\); console.log\\(Object.getOwnPropertyNames\\(Object.getPrototypeOf\\(inst\\)\\).join\\('', ''\\)\\)\")",
-      "Bash(find /c/claude-code/AI-PROPOSAL-WRITER -name .env* -type f)"
+      "Bash(find /c/claude-code/AI-PROPOSAL-WRITER -name .env* -type f)",
+      "Read(//dev/**)",
+      "Bash(node -e \":*)",
+      "Bash(npx tsx:*)"
     ]
   }
 }
