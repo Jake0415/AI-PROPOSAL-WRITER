@@ -4,6 +4,11 @@ import { profiles } from '@/lib/db/schema';
 import type { AppRole } from '@/lib/db/schema';
 
 export const profileRepository = {
+  async findAll() {
+    const db = getDb();
+    return db.select().from(profiles);
+  },
+
   async findByUserId(userId: string) {
     const db = getDb();
     const results = await db

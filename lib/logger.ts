@@ -1,47 +1,49 @@
-// 간단한 구조화 로거 (pino 대신 경량 구현)
+// 구조화 로거 (JSON 출력, requestId 지원)
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-interface LogEntry {
-  level: LogLevel;
-  message: string;
-  timestamp: string;
-  context?: Record<string, unknown>;
+const LOG_LEVELS: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
+
+const MIN_LEVEL: LogLevel = process.env.NODE_ENV === 'production' ? 'info' : 'debug';
+
+function shouldLog(level: LogLevel): boolean {
+  return LOG_LEVELS[level] >= LOG_LEVELS[MIN_LEVEL];
 }
 
-function formatLog(entry: LogEntry): string {
-  const ctx = entry.context ? ` ${JSON.stringify(entry.context)}` : '';
-  return `[${entry.timestamp}] ${entry.level.toUpperCase()} ${entry.message}${ctx}`;
+interface LogContext {
+  requestId?: string;
+  [key: string]: unknown;
 }
 
-function log(level: LogLevel, message: string, context?: Record<string, unknown>) {
-  const entry: LogEntry = {
+function log(level: LogLevel, message: string, context?: LogContext) {
+  if (!shouldLog(level)) return;
+
+  const entry = {
     level,
-    message,
-    timestamp: new Date().toISOString(),
-    context,
+    msg: message,
+    time: new Date().toISOString(),
+    ...context,
   };
 
-  const formatted = formatLog(entry);
+  const output = process.env.NODE_ENV === 'production'
+    ? JSON.stringify(entry)
+    : `[${entry.time}] ${level.toUpperCase()} ${message}${context ? ` ${JSON.stringify(context)}` : ''}`;
 
   switch (level) {
-    case 'error':
-      console.error(formatted);
-      break;
-    case 'warn':
-      console.warn(formatted);
-      break;
-    default:
-      if (process.env.NODE_ENV !== 'production' || level === 'info') {
-        console.log(formatted);
-      }
-      break;
+    case 'error': console.error(output); break;
+    case 'warn': console.warn(output); break;
+    default: console.log(output); break;
   }
 }
 
 export const logger = {
-  debug: (message: string, context?: Record<string, unknown>) => log('debug', message, context),
-  info: (message: string, context?: Record<string, unknown>) => log('info', message, context),
-  warn: (message: string, context?: Record<string, unknown>) => log('warn', message, context),
-  error: (message: string, context?: Record<string, unknown>) => log('error', message, context),
+  debug: (message: string, context?: LogContext) => log('debug', message, context),
+  info: (message: string, context?: LogContext) => log('info', message, context),
+  warn: (message: string, context?: LogContext) => log('warn', message, context),
+  error: (message: string, context?: LogContext) => log('error', message, context),
 };
+
+// requestId 생성
+export function generateRequestId(): string {
+  return `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}

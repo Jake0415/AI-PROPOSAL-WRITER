@@ -8,7 +8,9 @@ import {
   sanitizeFileName,
   isAllowedMimeType,
   isAllowedFileSize,
+  validateMagicBytes,
 } from '@/lib/security/sanitize';
+import { handleApiError } from '@/lib/errors/api-handler';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
@@ -63,6 +65,15 @@ export async function POST(
 
     const fileType = ext as 'pdf' | 'docx';
     const buffer = Buffer.from(await file.arrayBuffer());
+
+    // Magic bytes 검증 (MIME 위조 방지)
+    if (!validateMagicBytes(buffer, fileType)) {
+      return NextResponse.json(
+        { success: false, error: { code: 'INVALID_FILE', message: '파일 내용이 확장자와 일치하지 않습니다' } },
+        { status: 400 },
+      );
+    }
+
     // 파일명 새니타이징
     const safeName = sanitizeFileName(file.name);
 
@@ -95,10 +106,7 @@ export async function POST(
         pageCount: parsed.pageCount,
       },
     });
-  } catch {
-    return NextResponse.json(
-      { success: false, error: { code: 'UPLOAD_ERROR', message: 'RFP 파일 업로드에 실패했습니다' } },
-      { status: 500 },
-    );
+  } catch (err) {
+    return handleApiError(err);
   }
 }

@@ -37,6 +37,24 @@ export function isAllowedFileSize(
   return size > 0 && size <= maxSize;
 }
 
+// Magic bytes (파일 시그니처) 검증 - MIME 타입 위조 방지
+const MAGIC_BYTES: Record<string, number[][]> = {
+  pdf: [[0x25, 0x50, 0x44, 0x46]], // %PDF
+  docx: [[0x50, 0x4B, 0x03, 0x04]], // PK (ZIP 기반)
+};
+
+export function validateMagicBytes(
+  buffer: Buffer | Uint8Array,
+  expectedType: 'pdf' | 'docx',
+): boolean {
+  const signatures = MAGIC_BYTES[expectedType];
+  if (!signatures) return false;
+
+  return signatures.some((sig) =>
+    sig.every((byte, i) => buffer[i] === byte),
+  );
+}
+
 // HTML 새니타이징 (XSS 방지)
 export function escapeHtml(str: string): string {
   return str

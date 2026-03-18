@@ -1,59 +1,103 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
+import { generateRequestId, logger } from '@/lib/logger';
+import { checkRateLimit } from '@/lib/security/rate-limiter';
 
 // 인증 불필요한 공개 경로
-const PUBLIC_PATHS = [
-  '/auth',
-  '/guide',
-  '/api/health',
-  '/api/auth',
-];
+const PUBLIC_PATHS = ['/auth', '/guide', '/api/health', '/api/auth'];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 }
 
-// 정적 리소스 (미들웨어 스킵)
 function isStaticPath(pathname: string): boolean {
-  return (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon') ||
-    pathname.includes('.')
-  );
+  return pathname.startsWith('/_next') || pathname.startsWith('/favicon') || pathname.includes('.');
+}
+
+// 클라이언트 IP 추출
+function getClientIp(request: NextRequest): string {
+  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    ?? request.headers.get('x-real-ip')
+    ?? '127.0.0.1';
 }
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const start = Date.now();
 
-  // 정적 리소스는 스킵
   if (isStaticPath(pathname)) {
     return NextResponse.next();
+  }
+
+  // requestId 생성
+  const requestId = generateRequestId();
+
+  // Rate Limit (API 요청만)
+  if (pathname.startsWith('/api/')) {
+    const ip = getClientIp(request);
+    const isAiEndpoint = pathname.includes('/generate') || pathname.includes('/analyze');
+    const limit = isAiEndpoint
+      ? checkRateLimit(`ai:${ip}`, { maxRequests: 10, windowMs: 60_000 })
+      : checkRateLimit(`api:${ip}`, { maxRequests: 100, windowMs: 60_000 });
+
+    if (!limit.allowed) {
+      logger.warn('Rate limit exceeded', { requestId, ip, pathname });
+      return NextResponse.json(
+        { success: false, error: { code: 'RATE_LIMIT', message: '요청이 너무 많습니다' } },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((limit.resetAt - Date.now()) / 1000)),
+            'X-Request-Id': requestId,
+          },
+        },
+      );
+    }
   }
 
   // 세션 갱신
   const { user, supabaseResponse } = await updateSession(request);
 
+  // 응답 헤더에 requestId + 보안 헤더 추가
+  supabaseResponse.headers.set('X-Request-Id', requestId);
+  supabaseResponse.headers.set('X-Content-Type-Options', 'nosniff');
+  supabaseResponse.headers.set('X-Frame-Options', 'DENY');
+  supabaseResponse.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+
   // 공개 경로는 통과
   if (isPublicPath(pathname)) {
+    logRequest(requestId, request, 200, start);
     return supabaseResponse;
   }
 
   // 미인증 사용자 처리
   if (!user) {
-    // API 요청은 JSON 에러 응답
     if (pathname.startsWith('/api/')) {
+      logRequest(requestId, request, 401, start);
       return NextResponse.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: '인증이 필요합니다' } },
-        { status: 401 },
+        { status: 401, headers: { 'X-Request-Id': requestId } },
       );
     }
-    // 페이지 요청은 로그인으로 리다이렉트
     const loginUrl = new URL('/auth/login', request.url);
     loginUrl.searchParams.set('redirectTo', pathname);
+    logRequest(requestId, request, 302, start);
     return NextResponse.redirect(loginUrl);
   }
 
+  logRequest(requestId, request, 200, start);
   return supabaseResponse;
+}
+
+function logRequest(requestId: string, request: NextRequest, status: number, start: number) {
+  const duration = Date.now() - start;
+  logger.info(`${request.method} ${request.nextUrl.pathname}`, {
+    requestId,
+    method: request.method,
+    path: request.nextUrl.pathname,
+    status,
+    duration,
+  });
 }
 
 export const config = {
