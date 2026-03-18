@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ProgressTracker } from '@/components/project/progress-tracker';
 import { useSSE } from '@/lib/hooks/use-sse';
 import type { OutlineSection } from '@/lib/ai/types';
+import { CoachingButton } from '@/components/guide/coaching-button';
 import { ArrowRight, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -17,12 +18,14 @@ export default function OutlinePage() {
 
   const [sections, setSections] = useState<OutlineSection[]>([]);
   const sse = useSSE<OutlineSection[]>();
+  const initialized = useRef(false);
 
   useEffect(() => {
-    if (!sse.result) {
+    if (!initialized.current) {
+      initialized.current = true;
       sse.execute(`/api/projects/${projectId}/outline/generate`);
     }
-  }, [projectId]);
+  }, [projectId, sse]);
 
   useEffect(() => {
     if (sse.result) {
@@ -57,12 +60,17 @@ export default function OutlinePage() {
             공공 제안서 작성법 기반으로 목차를 자동 구성합니다
           </p>
         </div>
-        {sections.length > 0 && (
-          <Button onClick={() => router.push(`/projects/${projectId}/sections`)}>
-            다음: 내용 생성
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {sections.length > 0 && (
+            <CoachingButton projectId={projectId} stepKey="outline" />
+          )}
+          {sections.length > 0 && (
+            <Button onClick={() => router.push(`/projects/${projectId}/sections`)}>
+              다음: 내용 생성
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       <ProgressTracker

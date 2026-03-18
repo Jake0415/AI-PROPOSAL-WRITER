@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server';
 import { generateText } from '@/lib/ai/client';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
 import { proposalRepository } from '@/lib/repositories/proposal.repository';
-import { projectRepository } from '@/lib/repositories/project.repository';
 import {
   DIRECTION_SYSTEM_PROMPT,
   buildDirectionPrompt,

@@ -1,56 +1,49 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { claudeProvider } from './providers/claude';
+import { gptProvider } from './providers/gpt';
+import type { AiProvider, AiProviderInterface, GenerateOptions } from './providers/types';
 
-let _client: Anthropic | null = null;
+// 타입 재내보내기 (기존 import 호환)
+export type { GenerateOptions } from './providers/types';
 
-export function getAiClient(): Anthropic {
-  if (!_client) {
-    _client = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-  }
-  return _client;
-}
-
+// 기본값 (하위 호환)
 export const AI_MODEL = 'claude-sonnet-4-6' as const;
 export const MAX_TOKENS = 4096;
 
-interface GenerateOptions {
-  systemPrompt: string;
-  userPrompt: string;
-  model?: string;
-  maxTokens?: number;
+// 프로바이더 레지스트리
+const providers: Record<AiProvider, AiProviderInterface> = {
+  claude: claudeProvider,
+  gpt: gptProvider,
+};
+
+// 런타임 프로바이더 오버라이드 (DB 설정에서 로드)
+let _runtimeProvider: AiProvider | null = null;
+
+export function setRuntimeProvider(provider: AiProvider) {
+  _runtimeProvider = provider;
 }
 
+// 활성 프로바이더 결정 (우선순위: 런타임 > 환경변수 > 기본값)
+export function getActiveProvider(): AiProvider {
+  if (_runtimeProvider) return _runtimeProvider;
+  const env = process.env.AI_PROVIDER?.toLowerCase();
+  if (env === 'gpt' || env === 'openai') return 'gpt';
+  return 'claude';
+}
+
+// 프로바이더 인스턴스 조회
+function getProvider(providerName?: AiProvider): AiProviderInterface {
+  const name = providerName ?? getActiveProvider();
+  return providers[name];
+}
+
+// 통합 텍스트 생성 (기존 시그니처 유지)
 export async function generateText(options: GenerateOptions): Promise<string> {
-  const client = getAiClient();
-
-  const response = await client.messages.create({
-    model: options.model ?? AI_MODEL,
-    max_tokens: options.maxTokens ?? MAX_TOKENS,
-    system: options.systemPrompt,
-    messages: [{ role: 'user', content: options.userPrompt }],
-  });
-
-  const textBlock = response.content.find((block) => block.type === 'text');
-  return textBlock?.text ?? '';
+  const provider = getProvider();
+  return provider.generateText(options);
 }
 
+// 통합 스트리밍 생성 (기존 시그니처 유지)
 export async function* generateStream(options: GenerateOptions): AsyncGenerator<string> {
-  const client = getAiClient();
-
-  const stream = client.messages.stream({
-    model: options.model ?? AI_MODEL,
-    max_tokens: options.maxTokens ?? MAX_TOKENS,
-    system: options.systemPrompt,
-    messages: [{ role: 'user', content: options.userPrompt }],
-  });
-
-  for await (const event of stream) {
-    if (
-      event.type === 'content_block_delta' &&
-      event.delta.type === 'text_delta'
-    ) {
-      yield event.delta.text;
-    }
-  }
+  const provider = getProvider();
+  yield* provider.generateStream(options);
 }

@@ -7,14 +7,13 @@ interface ParseResult {
 }
 
 export async function parsePdf(buffer: Buffer): Promise<ParseResult> {
-  const parser = new PDFParse(buffer);
-  await parser.load();
+  const parser = new PDFParse({ data: new Uint8Array(buffer) });
   const info = await parser.getInfo();
-  const text = await parser.getText();
-  parser.destroy();
+  const textResult = await parser.getText();
+  await parser.destroy();
   return {
-    text,
-    pageCount: info?.pages ?? undefined,
+    text: textResult.text,
+    pageCount: info.total,
   };
 }
 

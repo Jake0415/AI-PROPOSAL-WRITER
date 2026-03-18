@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ProgressTracker } from '@/components/project/progress-tracker';
 import { useSSE } from '@/lib/hooks/use-sse';
 import type { RfpAnalysisResult } from '@/lib/ai/types';
+import { CoachingButton } from '@/components/guide/coaching-button';
 import { Loader2, ArrowRight } from 'lucide-react';
 
 export default function AnalysisPage() {
@@ -16,33 +17,31 @@ export default function AnalysisPage() {
   const projectId = params.id as string;
 
   const [analysis, setAnalysis] = useState<RfpAnalysisResult | null>(null);
-  const [hasExisting, setHasExisting] = useState(false);
   const sse = useSSE<RfpAnalysisResult>();
 
-  useEffect(() => {
-    fetchExisting();
-  }, [projectId]);
-
-  useEffect(() => {
-    if (sse.result) {
-      setAnalysis(sse.result);
-    }
-  }, [sse.result]);
-
-  async function fetchExisting() {
+  const fetchExisting = useCallback(async () => {
     try {
       const res = await fetch(`/api/projects/${projectId}/rfp/analysis`);
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
           setAnalysis(data.data);
-          setHasExisting(true);
         }
       }
     } catch {
       // 분석 결과 없음
     }
-  }
+  }, [projectId]);
+
+  useEffect(() => {
+    fetchExisting();
+  }, [fetchExisting]);
+
+  useEffect(() => {
+    if (sse.result) {
+      setAnalysis(sse.result);
+    }
+  }, [sse.result]);
 
   function startAnalysis() {
     sse.execute(`/api/projects/${projectId}/rfp/analyze`);
@@ -63,12 +62,17 @@ export default function AnalysisPage() {
             분석 시작
           </Button>
         )}
-        {analysis && (
-          <Button onClick={() => router.push(`/projects/${projectId}/direction`)}>
-            다음: 방향성 설정
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {analysis && (
+            <CoachingButton projectId={projectId} stepKey="analysis" />
+          )}
+          {analysis && (
+            <Button onClick={() => router.push(`/projects/${projectId}/direction`)}>
+              다음: 방향성 설정
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* 진행률 */}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ProgressTracker } from '@/components/project/progress-tracker';
 import { useSSE } from '@/lib/hooks/use-sse';
 import type { ProposalStrategyResult } from '@/lib/ai/types';
+import { CoachingButton } from '@/components/guide/coaching-button';
 import { ArrowRight, Target, MessageSquare, Sparkles } from 'lucide-react';
 
 export default function StrategyPage() {
@@ -17,12 +18,14 @@ export default function StrategyPage() {
 
   const [strategy, setStrategy] = useState<ProposalStrategyResult | null>(null);
   const sse = useSSE<ProposalStrategyResult>();
+  const initialized = useRef(false);
 
   useEffect(() => {
-    if (!sse.result) {
+    if (!initialized.current) {
+      initialized.current = true;
       sse.execute(`/api/projects/${projectId}/strategy/generate`);
     }
-  }, [projectId]);
+  }, [projectId, sse]);
 
   useEffect(() => {
     if (sse.result) {
@@ -39,12 +42,17 @@ export default function StrategyPage() {
             선택한 방향성 기반으로 경쟁 전략을 수립합니다
           </p>
         </div>
-        {strategy && (
-          <Button onClick={() => router.push(`/projects/${projectId}/outline`)}>
-            다음: 목차 구성
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {strategy && (
+            <CoachingButton projectId={projectId} stepKey="strategy" />
+          )}
+          {strategy && (
+            <Button onClick={() => router.push(`/projects/${projectId}/outline`)}>
+              다음: 목차 구성
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       <ProgressTracker

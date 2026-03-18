@@ -1,4 +1,7 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { pgSchema, text, integer, boolean } from 'drizzle-orm/pg-core';
+
+// aiprowriter 전용 스키마 (다른 프로젝트와 분리)
+export const aiprowriterSchema = pgSchema('aiprowriter');
 
 // Project 상태 타입
 export type ProjectStatus =
@@ -14,7 +17,7 @@ export type SectionStatus = 'pending' | 'generating' | 'generated' | 'edited';
 
 // ─── Projects ───────────────────────────────────────────────
 
-export const projects = sqliteTable('projects', {
+export const projects = aiprowriterSchema.table('projects', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   status: text('status').$type<ProjectStatus>().notNull().default('uploaded'),
@@ -24,7 +27,7 @@ export const projects = sqliteTable('projects', {
 
 // ─── RFP Files ──────────────────────────────────────────────
 
-export const rfpFiles = sqliteTable('rfp_files', {
+export const rfpFiles = aiprowriterSchema.table('rfp_files', {
   id: text('id').primaryKey(),
   projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   fileName: text('file_name').notNull(),
@@ -37,24 +40,24 @@ export const rfpFiles = sqliteTable('rfp_files', {
 
 // ─── RFP Analysis ───────────────────────────────────────────
 
-export const rfpAnalyses = sqliteTable('rfp_analyses', {
+export const rfpAnalyses = aiprowriterSchema.table('rfp_analyses', {
   id: text('id').primaryKey(),
   projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  overview: text('overview').notNull().default('{}'),        // JSON string
-  requirements: text('requirements').notNull().default('[]'), // JSON string
+  overview: text('overview').notNull().default('{}'),
+  requirements: text('requirements').notNull().default('[]'),
   evaluationCriteria: text('evaluation_criteria').notNull().default('[]'),
   scope: text('scope').notNull().default('{}'),
   constraints: text('constraints').notNull().default('{}'),
-  keywords: text('keywords').notNull().default('[]'),        // JSON string[]
+  keywords: text('keywords').notNull().default('[]'),
   analyzedAt: text('analyzed_at').notNull(),
 });
 
 // ─── Proposal Direction ─────────────────────────────────────
 
-export const proposalDirections = sqliteTable('proposal_directions', {
+export const proposalDirections = aiprowriterSchema.table('proposal_directions', {
   id: text('id').primaryKey(),
   projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  candidates: text('candidates').notNull().default('[]'),    // JSON string
+  candidates: text('candidates').notNull().default('[]'),
   selectedIndex: integer('selected_index').default(-1),
   customNotes: text('custom_notes').default(''),
   confirmedAt: text('confirmed_at'),
@@ -62,7 +65,7 @@ export const proposalDirections = sqliteTable('proposal_directions', {
 
 // ─── Proposal Strategy ──────────────────────────────────────
 
-export const proposalStrategies = sqliteTable('proposal_strategies', {
+export const proposalStrategies = aiprowriterSchema.table('proposal_strategies', {
   id: text('id').primaryKey(),
   projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   competitiveStrategy: text('competitive_strategy').notNull().default(''),
@@ -74,22 +77,22 @@ export const proposalStrategies = sqliteTable('proposal_strategies', {
 
 // ─── Proposal Outline ───────────────────────────────────────
 
-export const proposalOutlines = sqliteTable('proposal_outlines', {
+export const proposalOutlines = aiprowriterSchema.table('proposal_outlines', {
   id: text('id').primaryKey(),
   projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  sections: text('sections').notNull().default('[]'),        // JSON nested structure
+  sections: text('sections').notNull().default('[]'),
 });
 
 // ─── Proposal Sections ──────────────────────────────────────
 
-export const proposalSections = sqliteTable('proposal_sections', {
+export const proposalSections = aiprowriterSchema.table('proposal_sections', {
   id: text('id').primaryKey(),
   projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   outlineId: text('outline_id').notNull().references(() => proposalOutlines.id),
-  sectionPath: text('section_path').notNull(),               // "1.2.3" 형태
+  sectionPath: text('section_path').notNull(),
   title: text('title').notNull(),
   content: text('content').notNull().default(''),
-  diagrams: text('diagrams').notNull().default('[]'),        // JSON Mermaid codes
+  diagrams: text('diagrams').notNull().default('[]'),
   status: text('status').$type<SectionStatus>().notNull().default('pending'),
   generatedAt: text('generated_at'),
   editedAt: text('edited_at'),
@@ -97,18 +100,30 @@ export const proposalSections = sqliteTable('proposal_sections', {
 
 // ─── Templates ──────────────────────────────────────────────
 
-export const templates = sqliteTable('templates', {
+export const templates = aiprowriterSchema.table('templates', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   type: text('type').$type<'word' | 'ppt'>().notNull(),
   filePath: text('file_path').notNull(),
-  isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(false),
+  isDefault: boolean('is_default').notNull().default(false),
   uploadedAt: text('uploaded_at').notNull(),
+});
+
+// ─── AI Settings ────────────────────────────────────────────
+
+export type AiProviderType = 'claude' | 'gpt';
+
+export const aiSettings = aiprowriterSchema.table('ai_settings', {
+  id: text('id').primaryKey(),
+  provider: text('provider').$type<AiProviderType>().notNull().default('claude'),
+  claudeModel: text('claude_model').notNull().default('claude-sonnet-4-6'),
+  gptModel: text('gpt_model').notNull().default('gpt-4o'),
+  updatedAt: text('updated_at').notNull(),
 });
 
 // ─── Output Files ───────────────────────────────────────────
 
-export const outputFiles = sqliteTable('output_files', {
+export const outputFiles = aiprowriterSchema.table('output_files', {
   id: text('id').primaryKey(),
   projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   type: text('type').$type<'word' | 'ppt'>().notNull(),

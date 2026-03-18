@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeDb } from '@/lib/db/client';
 import { projectRepository } from '@/lib/repositories/project.repository';
 import { createProjectSchema } from '@/lib/validators/project.schema';
-
-// DB 초기화 (최초 1회)
-try {
-  initializeDb();
-} catch {
-  // 이미 초기화됨
-}
 
 export async function GET() {
   try {

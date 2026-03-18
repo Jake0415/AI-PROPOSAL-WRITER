@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ProgressTracker } from '@/components/project/progress-tracker';
 import { useSSE } from '@/lib/hooks/use-sse';
 import type { DirectionCandidate } from '@/lib/ai/types';
+import { CoachingButton } from '@/components/guide/coaching-button';
 import { ArrowRight, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -20,22 +21,20 @@ export default function DirectionPage() {
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [isConfirming, setIsConfirming] = useState(false);
   const sse = useSSE<DirectionCandidate[]>();
+  const initialized = useRef(false);
 
   useEffect(() => {
-    if (!sse.result) {
-      generateDirections();
+    if (!initialized.current) {
+      initialized.current = true;
+      sse.execute(`/api/projects/${projectId}/direction/generate`);
     }
-  }, [projectId]);
+  }, [projectId, sse]);
 
   useEffect(() => {
     if (sse.result) {
       setCandidates(sse.result);
     }
   }, [sse.result]);
-
-  function generateDirections() {
-    sse.execute(`/api/projects/${projectId}/direction/generate`);
-  }
 
   async function confirmSelection() {
     if (selectedIndex < 0) return;
@@ -65,12 +64,17 @@ export default function DirectionPage() {
             AI가 제시한 제안 방향 중 하나를 선택하세요
           </p>
         </div>
-        {selectedIndex >= 0 && (
-          <Button onClick={confirmSelection} disabled={isConfirming}>
-            확정 및 다음 단계
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {candidates.length > 0 && (
+            <CoachingButton projectId={projectId} stepKey="direction" />
+          )}
+          {selectedIndex >= 0 && (
+            <Button onClick={confirmSelection} disabled={isConfirming}>
+              확정 및 다음 단계
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       <ProgressTracker
