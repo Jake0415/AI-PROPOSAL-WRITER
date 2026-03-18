@@ -71,6 +71,12 @@ export function Navbar() {
             >
               설정
             </Link>
+            <Link
+              href="/admin"
+              className="transition-colors hover:text-foreground/80 text-muted-foreground"
+            >
+              관리
+            </Link>
           </nav>
         </div>
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">

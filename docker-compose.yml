@@ -1,0 +1,15 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    volumes:
+      - upload-data:/app/data/uploads
+    restart: unless-stopped
+
+volumes:
+  upload-data:

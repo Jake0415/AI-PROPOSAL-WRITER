@@ -37,7 +37,8 @@
       "mcp__shrimp-task-manager__verify_task",
       "Bash(grep -r \"ANTHROPIC_API_KEY\\\\|@anthropic-ai/sdk\" /c/claude-code/AI-PROPOSAL-WRITER/lib --include=*.ts --include=*.tsx)",
       "Bash(node -e \":*)",
-      "Bash(find /c/claude-code/AI-PROPOSAL-WRITER/app/api -type f -name *.ts)"
+      "Bash(find /c/claude-code/AI-PROPOSAL-WRITER/app/api -type f -name *.ts)",
+      "Bash(npm test:*)"
     ],
     "deny": [
       "Bash(rm:*)",

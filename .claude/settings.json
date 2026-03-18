@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/eun/**)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(node -e \"const s = require\\(''c:/claude-code/AI-PROPOSAL-WRITER/.claude/settings.local.json''\\); console.log\\(''allow 항목 수:'', s.permissions.allow.length\\); console.log\\(''JSON 유효''\\)\")",
+      "Bash(grep -l \"상태:\" /c/claude-code/AI-PROPOSAL-WRITER/tasks/*.md)",
+      "Bash(done)",
+      "Bash(ls -la /c/claude-code/AI-PROPOSAL-WRITER/app/api/projects/*/)",
+      "Bash(node -e \"const pkg = require\\(''./node_modules/pdf-parse/package.json''\\); console.log\\(''pdf-parse version:'', pkg.version\\)\")",
+      "Bash(npx tsc:*)",
+      "Bash(node -e \"const p = require\\(''pdf-parse''\\); const inst = new p.PDFParse\\(Buffer.from\\(''''\\)\\); console.log\\(Object.getOwnPropertyNames\\(Object.getPrototypeOf\\(inst\\)\\).join\\('', ''\\)\\)\")",
+      "Bash(find /c/claude-code/AI-PROPOSAL-WRITER -name .env* -type f)"
+    ]
+  }
+}
