@@ -35,16 +35,16 @@ export async function POST(
           return;
         }
 
-        send('progress', { step: 'AI 분석 시작', progress: 30 });
+        send('progress', { step: '수주 최적화 AI 분석 시작 (7단계)', progress: 20 });
 
-        // AI 분석 실행
+        // AI 분석 실행 (수주 최적화 7단계 분석)
         const result = await generateText({
           systemPrompt: RFP_ANALYSIS_SYSTEM_PROMPT,
           userPrompt: buildRfpAnalysisPrompt(rfpFile.rawText),
-          maxTokens: 8192,
+          maxTokens: 16384,
         });
 
-        send('progress', { step: '분석 결과 저장', progress: 80 });
+        send('progress', { step: '분석 결과 파싱', progress: 70 });
 
         // JSON 파싱 시도
         let analysisData;
@@ -54,20 +54,34 @@ export async function POST(
         } catch {
           analysisData = {
             overview: { projectName: '분석 실패', summary: result.slice(0, 500) },
+            evaluationItems: [],
             requirements: [],
-            evaluationCriteria: [],
+            traceabilityMatrix: [],
+            qualifications: [],
+            strategyPoints: [],
+            recommendedChapters: [],
             scope: { inScope: [], outOfScope: [] },
             constraints: { technical: [], business: [], timeline: [] },
             keywords: [],
           };
         }
 
-        // DB 저장
+        send('progress', { step: 'DB 저장', progress: 85 });
+
+        // 하위 호환: evaluationCriteria가 있으면 evaluationItems로 변환
+        const evalItems = analysisData.evaluationItems ?? analysisData.evaluationCriteria ?? [];
+
+        // DB 저장 (확장 필드 포함)
         await rfpRepository.createAnalysis({
           projectId,
           overview: JSON.stringify(analysisData.overview ?? {}),
           requirements: JSON.stringify(analysisData.requirements ?? []),
-          evaluationCriteria: JSON.stringify(analysisData.evaluationCriteria ?? []),
+          evaluationCriteria: JSON.stringify(evalItems),
+          evaluationItems: JSON.stringify(evalItems),
+          traceabilityMatrix: JSON.stringify(analysisData.traceabilityMatrix ?? []),
+          qualifications: JSON.stringify(analysisData.qualifications ?? []),
+          strategyPoints: JSON.stringify(analysisData.strategyPoints ?? []),
+          recommendedChapters: JSON.stringify(analysisData.recommendedChapters ?? []),
           scope: JSON.stringify(analysisData.scope ?? {}),
           constraints: JSON.stringify(analysisData.constraints ?? {}),
           keywords: JSON.stringify(analysisData.keywords ?? []),

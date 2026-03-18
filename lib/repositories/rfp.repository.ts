@@ -36,6 +36,11 @@ export const rfpRepository = {
     overview: string;
     requirements: string;
     evaluationCriteria: string;
+    evaluationItems?: string;
+    traceabilityMatrix?: string;
+    qualifications?: string;
+    strategyPoints?: string;
+    recommendedChapters?: string;
     scope: string;
     constraints: string;
     keywords: string;
@@ -44,6 +49,11 @@ export const rfpRepository = {
     const analysis = {
       id: uuidv4(),
       ...data,
+      evaluationItems: data.evaluationItems ?? '[]',
+      traceabilityMatrix: data.traceabilityMatrix ?? '[]',
+      qualifications: data.qualifications ?? '[]',
+      strategyPoints: data.strategyPoints ?? '[]',
+      recommendedChapters: data.recommendedChapters ?? '[]',
       analyzedAt: new Date().toISOString(),
     };
     await db.insert(rfpAnalyses).values(analysis);
@@ -63,6 +73,11 @@ export const rfpRepository = {
     overview: string;
     requirements: string;
     evaluationCriteria: string;
+    evaluationItems: string;
+    traceabilityMatrix: string;
+    qualifications: string;
+    strategyPoints: string;
+    recommendedChapters: string;
     scope: string;
     constraints: string;
     keywords: string;

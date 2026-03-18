@@ -72,6 +72,12 @@ export const rfpAnalyses = aiprowriterSchema.table('rfp_analyses', {
   overview: text('overview').notNull().default('{}'),
   requirements: text('requirements').notNull().default('[]'),
   evaluationCriteria: text('evaluation_criteria').notNull().default('[]'),
+  // 수주 최적화 분석 확장 필드
+  evaluationItems: text('evaluation_items').notNull().default('[]'),         // EvaluationItem[] (EVAL-ID 체계)
+  traceabilityMatrix: text('traceability_matrix').notNull().default('[]'),   // TraceabilityMapping[]
+  qualifications: text('qualifications').notNull().default('[]'),            // Qualification[]
+  strategyPoints: text('strategy_points').notNull().default('[]'),           // StrategyPoint[]
+  recommendedChapters: text('recommended_chapters').notNull().default('[]'), // RecommendedChapter[]
   scope: text('scope').notNull().default('{}'),
   constraints: text('constraints').notNull().default('{}'),
   keywords: text('keywords').notNull().default('[]'),
