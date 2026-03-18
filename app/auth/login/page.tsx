@@ -70,6 +70,7 @@ function LoginForm() {
               id="email"
               type="email"
               placeholder="name@example.com"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -81,6 +82,7 @@ function LoginForm() {
               id="password"
               type="password"
               placeholder="비밀번호 입력"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required

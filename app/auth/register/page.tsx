@@ -59,6 +59,7 @@ export default function RegisterPage() {
               id="name"
               type="text"
               placeholder="홍길동"
+              autoComplete="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -70,6 +71,7 @@ export default function RegisterPage() {
               id="email"
               type="email"
               placeholder="name@example.com"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -81,6 +83,7 @@ export default function RegisterPage() {
               id="password"
               type="password"
               placeholder="6자 이상"
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               minLength={6}
