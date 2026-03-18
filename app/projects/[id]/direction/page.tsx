@@ -20,13 +20,29 @@ export default function DirectionPage() {
   const [candidates, setCandidates] = useState<DirectionCandidate[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isLoadingExisting, setIsLoadingExisting] = useState(true);
   const sse = useSSE<DirectionCandidate[]>();
   const initialized = useRef(false);
 
   useEffect(() => {
     if (!initialized.current) {
       initialized.current = true;
-      sse.execute(`/api/projects/${projectId}/direction/generate`);
+      fetch(`/api/projects/${projectId}/direction`)
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.success && json.data?.candidates?.length > 0) {
+            setCandidates(json.data.candidates);
+            if (json.data.selectedIndex != null && json.data.selectedIndex >= 0) {
+              setSelectedIndex(json.data.selectedIndex);
+            }
+          } else {
+            sse.execute(`/api/projects/${projectId}/direction/generate`);
+          }
+        })
+        .catch(() => {
+          sse.execute(`/api/projects/${projectId}/direction/generate`);
+        })
+        .finally(() => setIsLoadingExisting(false));
     }
   }, [projectId, sse]);
 

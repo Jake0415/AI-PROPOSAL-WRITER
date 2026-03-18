@@ -11,6 +11,8 @@ export type ProjectStatus =
   | 'strategy_set'
   | 'outline_ready'
   | 'generating'
+  | 'sections_ready'
+  | 'reviewing'
   | 'completed';
 
 export type SectionStatus = 'pending' | 'generating' | 'generated' | 'edited';
@@ -103,6 +105,7 @@ export const proposalStrategies = aiprowriterSchema.table('proposal_strategies',
   competitiveStrategy: text('competitive_strategy').notNull().default(''),
   differentiators: text('differentiators').notNull().default('[]'),
   keyMessages: text('key_messages').notNull().default('[]'),
+  writingStyle: text('writing_style').notNull().default('formal'), // formal|descriptive|concise|persuasive
   customNotes: text('custom_notes').default(''),
   confirmedAt: text('confirmed_at'),
 });
@@ -126,8 +129,43 @@ export const proposalSections = aiprowriterSchema.table('proposal_sections', {
   content: text('content').notNull().default(''),
   diagrams: text('diagrams').notNull().default('[]'),
   status: text('status').$type<SectionStatus>().notNull().default('pending'),
+  linkedReqIds: text('linked_req_ids').notNull().default('[]'), // REQ-ID 배열 (추적성)
   generatedAt: text('generated_at'),
   editedAt: text('edited_at'),
+});
+
+// ─── Review Reports ─────────────────────────────────────────
+
+export type ReviewGrade = 'A' | 'B' | 'C' | 'D' | 'F';
+
+export const reviewReports = aiprowriterSchema.table('review_reports', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  overallScore: integer('overall_score').notNull().default(0),
+  totalPossible: integer('total_possible').notNull().default(100),
+  grade: text('grade').$type<ReviewGrade>().notNull().default('F'),
+  evalCoverage: integer('eval_coverage').notNull().default(0),         // 평가항목 충족률 %
+  reqCoverage: integer('req_coverage').notNull().default(0),           // 요구사항 충족률 %
+  formatCompliance: integer('format_compliance').notNull().default(0), // 형식 준수율 %
+  evalResults: text('eval_results').notNull().default('[]'),           // EvalItemReviewResult[]
+  reqResults: text('req_results').notNull().default('[]'),             // ReqReviewResult[]
+  improvements: text('improvements').notNull().default('[]'),          // ReviewImprovement[]
+  summary: text('summary').notNull().default(''),
+  generatedAt: text('generated_at').notNull(),
+});
+
+// ─── Price Proposals ────────────────────────────────────────
+
+export const priceProposals = aiprowriterSchema.table('price_proposals', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  laborCosts: text('labor_costs').notNull().default('[]'),       // LaborCostItem[]
+  equipmentCosts: text('equipment_costs').notNull().default('[]'), // EquipmentCostItem[]
+  expenseCosts: text('expense_costs').notNull().default('[]'),    // ExpenseCostItem[]
+  indirectCosts: text('indirect_costs').notNull().default('{}'),  // IndirectCosts
+  summary: text('summary').notNull().default('{}'),               // PriceSummary
+  competitiveness: text('competitiveness').notNull().default('{}'), // PriceCompetitiveness
+  generatedAt: text('generated_at').notNull(),
 });
 
 // ─── Templates ──────────────────────────────────────────────

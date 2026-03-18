@@ -160,6 +160,144 @@ export interface OutlineSection {
   children: OutlineSection[];
 }
 
+// ─── 검증 리포트 타입 ────────────────────────────────────────
+
+export type CoverageStatus = 'COVERED' | 'PARTIAL' | 'MISSING' | 'STRONG';
+
+export interface EvalItemReviewResult {
+  evalId: string;
+  item: string;
+  maxScore: number;
+  expectedScore: number;
+  coverage: CoverageStatus;
+  chapter: string;
+  strengths: string;
+  weaknesses: string;
+  improvement: string;
+}
+
+export interface ReqReviewResult {
+  reqId: string;
+  title: string;
+  mandatory: boolean;
+  category: RequirementCategory;
+  coverage: CoverageStatus;
+  chapter: string;
+  comment: string;
+}
+
+export interface ReviewImprovement {
+  priority: 'critical' | 'major' | 'minor';
+  item: string;
+  currentState: string;
+  expectedImpact: number;
+  action: string;
+}
+
+export interface ReviewReportResult {
+  overallScore: number;
+  totalPossible: number;
+  grade: string;
+  evalCoverage: number;
+  reqCoverage: number;
+  formatCompliance: number;
+  evalResults: EvalItemReviewResult[];
+  reqResults: ReqReviewResult[];
+  improvements: ReviewImprovement[];
+  summary: string;
+}
+
+// ─── 가격 제안서 타입 ────────────────────────────────────────
+
+export interface LaborCostItem {
+  role: string;
+  grade: string;
+  headcount: number;
+  duration: number;       // M/M
+  unitPrice: number;      // 원
+  amount: number;         // 원
+  basis: string;          // 단가 근거
+}
+
+export interface EquipmentCostItem {
+  category: string;
+  item: string;
+  spec: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+  basis: string;
+  relatedReqId?: string;  // REQ-TR-001
+}
+
+export interface ExpenseCostItem {
+  category: string;
+  basis: string;
+  amount: number;
+}
+
+export interface IndirectCosts {
+  generalAdmin: number;       // 일반관리비
+  generalAdminRate: number;   // %
+  profit: number;             // 이윤
+  profitRate: number;         // %
+}
+
+export interface PriceSummary {
+  directLabor: number;
+  directExpense: number;
+  miscExpense: number;
+  directSubtotal: number;
+  generalAdmin: number;
+  profit: number;
+  indirectSubtotal: number;
+  supplyPrice: number;
+  vat: number;
+  totalPrice: number;
+}
+
+export interface PriceCompetitiveness {
+  budgetRatio: number;          // 예산 대비 비율 %
+  recommendedRange: string;     // 권장 가격 범위
+  strategy: string;             // 가격 전략 설명
+}
+
+export interface PriceProposalResult {
+  laborCosts: LaborCostItem[];
+  equipmentCosts: EquipmentCostItem[];
+  expenseCosts: ExpenseCostItem[];
+  indirectCosts: IndirectCosts;
+  summary: PriceSummary;
+  competitiveness: PriceCompetitiveness;
+}
+
+// ─── 경쟁 분석 타입 ──────────────────────────────────────────
+
+export interface SwotAnalysis {
+  strengths: string[];
+  weaknesses: string[];
+  opportunities: string[];
+  threats: string[];
+}
+
+export interface CompetitiveAnalysisResult {
+  swot: SwotAnalysis;
+  competitors: string[];
+  differentiationStrategy: string;
+  riskFactors: string[];
+}
+
+// ─── 톤앤매너 타입 ───────────────────────────────────────────
+
+export type WritingStyle = 'formal' | 'descriptive' | 'concise' | 'persuasive';
+
+export const WRITING_STYLE_LABELS: Record<WritingStyle, string> = {
+  formal: '격식체 (공문서 스타일)',
+  descriptive: '설명체 (상세 서술)',
+  concise: '간결체 (핵심 중심)',
+  persuasive: '설득체 (강점 강조)',
+};
+
 // ─── SSE 이벤트 타입 ──────────────────────────────────────
 
 export interface SSEEvent {

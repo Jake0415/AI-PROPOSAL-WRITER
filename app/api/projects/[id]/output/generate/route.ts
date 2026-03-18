@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { mkdir, writeFile } from 'fs/promises';
+import { join } from 'path';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
 import { proposalRepository } from '@/lib/repositories/proposal.repository';
 import { projectRepository } from '@/lib/repositories/project.repository';
@@ -83,12 +85,18 @@ export async function POST(
         'application/vnd.openxmlformats-officedocument.presentationml.presentation';
     }
 
+    // 파일 로컬 저장
+    const outputDir = join(process.cwd(), 'data', 'outputs', projectId);
+    await mkdir(outputDir, { recursive: true });
+    const filePath = join(outputDir, fileName);
+    await writeFile(filePath, buffer);
+
     // DB에 산출물 기록
     await proposalRepository.createOutput({
       projectId,
       type: docType,
       templateId: null,
-      filePath: '',
+      filePath,
       fileName,
     });
 

@@ -16,8 +16,12 @@ export function buildSectionPrompt(
   analysisJson: string,
   strategyJson: string,
   outlineJson: string,
+  writingStyle?: string,
 ): string {
+  const styleDirective = writingStyle ? `\n## 문체 지시\n"${writingStyle}" 톤앤매너로 작성해주세요.\n` : '';
+
   return `다음 정보를 기반으로 제안서의 "${sectionTitle}" (${sectionPath}) 섹션 내용을 작성해주세요.
+${styleDirective}
 
 ## RFP 분석 결과 (요약)
 ${analysisJson.slice(0, 20000)}

@@ -15,6 +15,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { MermaidDiagram } from '@/components/ui/mermaid-diagram';
 import {
   ArrowRight,
   FileText,
@@ -309,6 +310,24 @@ export default function SectionsPage() {
                           {section.content || '(내용 없음)'}
                         </div>
                       )}
+
+                      {/* Mermaid 다이어그램 */}
+                      {!isEditing && section.diagrams && (() => {
+                        try {
+                          const diagrams: string[] = JSON.parse(section.diagrams);
+                          if (diagrams.length === 0) return null;
+                          return (
+                            <div className="space-y-3 pt-2">
+                              <p className="text-xs font-medium text-muted-foreground">다이어그램</p>
+                              {diagrams.map((chart, idx) => (
+                                <MermaidDiagram key={idx} chart={chart} />
+                              ))}
+                            </div>
+                          );
+                        } catch {
+                          return null;
+                        }
+                      })()}
                     </div>
                   </AccordionContent>
                 </AccordionItem>

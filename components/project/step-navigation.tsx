@@ -10,7 +10,10 @@ import {
   Target,
   List,
   FileText,
+  CheckCircle,
+  DollarSign,
   Download,
+  History,
 } from 'lucide-react';
 
 interface StepNavigationProps {
@@ -25,7 +28,10 @@ const STEPS = [
   { key: 'strategy', label: '전략 수립', icon: Target, path: 'strategy' },
   { key: 'outline', label: '목차 구성', icon: List, path: 'outline' },
   { key: 'sections', label: '내용 편집', icon: FileText, path: 'sections' },
+  { key: 'review', label: '검증 리포트', icon: CheckCircle, path: 'review' },
+  { key: 'pricing', label: '가격 제안서', icon: DollarSign, path: 'pricing' },
   { key: 'output', label: '산출물 출력', icon: Download, path: 'output' },
+  { key: 'versions', label: '버전 관리', icon: History, path: 'versions' },
 ];
 
 const STATUS_ORDER = [
@@ -35,6 +41,8 @@ const STATUS_ORDER = [
   'strategy_set',
   'outline_ready',
   'generating',
+  'sections_ready',
+  'reviewing',
   'completed',
 ];
 
@@ -49,7 +57,8 @@ export function StepNavigation({ projectId, currentStatus }: StepNavigationProps
       </div>
       {STEPS.map((step, i) => {
         const isActive = pathname.includes(`/${step.path}`);
-        const isAccessible = i <= statusIndex + 1;
+        // 10단계 중 현재 상태에 따라 접근 가능 범위 결정
+        const isAccessible = i <= statusIndex + 2;
         const Icon = step.icon;
 
         return (

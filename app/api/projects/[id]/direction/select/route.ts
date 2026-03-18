@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { proposalRepository } from '@/lib/repositories/proposal.repository';
-import { projectRepository } from '@/lib/repositories/project.repository';
+import { selectDirection } from '@/lib/services/direction.service';
 
 export async function PUT(
   request: NextRequest,
@@ -19,21 +18,13 @@ export async function PUT(
       );
     }
 
-    const direction = await proposalRepository.getDirection(projectId);
-    if (!direction) {
-      return NextResponse.json(
-        { success: false, error: { code: 'NOT_FOUND', message: '방향성 후보가 없습니다' } },
-        { status: 404 },
-      );
-    }
-
-    await proposalRepository.selectDirection(direction.id, selectedIndex);
-    await projectRepository.updateStatus(projectId, 'direction_set');
+    await selectDirection(projectId, selectedIndex);
 
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '방향성 선택에 실패했습니다';
     return NextResponse.json(
-      { success: false, error: { code: 'SELECT_ERROR', message: '방향성 선택에 실패했습니다' } },
+      { success: false, error: { code: 'SELECT_ERROR', message } },
       { status: 500 },
     );
   }

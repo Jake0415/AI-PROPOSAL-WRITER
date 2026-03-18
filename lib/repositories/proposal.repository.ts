@@ -50,12 +50,16 @@ export const proposalRepository = {
     competitiveStrategy: string;
     differentiators: string;
     keyMessages: string;
+    writingStyle?: string;
   }) {
     const db = getDb();
     const strategy = {
       id: uuidv4(),
       projectId,
-      ...data,
+      competitiveStrategy: data.competitiveStrategy,
+      differentiators: data.differentiators,
+      keyMessages: data.keyMessages,
+      writingStyle: data.writingStyle ?? 'formal',
       customNotes: '',
       confirmedAt: null,
     };

@@ -1,0 +1,59 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { generateText } from '@/lib/ai/client';
+import { rfpRepository } from '@/lib/repositories/rfp.repository';
+import {
+  COMPETITIVE_ANALYSIS_SYSTEM_PROMPT,
+  buildCompetitiveAnalysisPrompt,
+} from '@/lib/ai/prompts/competitive-analysis';
+import type { CompetitiveAnalysisResult } from '@/lib/ai/types';
+
+export async function POST(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id: projectId } = await params;
+
+  try {
+    const analysis = await rfpRepository.getAnalysisByProjectId(projectId);
+    if (!analysis) {
+      return NextResponse.json(
+        { success: false, error: { code: 'NO_ANALYSIS', message: '분석 결과가 없습니다' } },
+        { status: 400 },
+      );
+    }
+
+    const analysisJson = JSON.stringify({
+      overview: JSON.parse(analysis.overview),
+      requirements: JSON.parse(analysis.requirements),
+      evaluationItems: JSON.parse(analysis.evaluationItems),
+      keywords: JSON.parse(analysis.keywords),
+    });
+
+    const result = await generateText({
+      systemPrompt: COMPETITIVE_ANALYSIS_SYSTEM_PROMPT,
+      userPrompt: buildCompetitiveAnalysisPrompt(analysisJson),
+      maxTokens: 4096,
+    });
+
+    let data: CompetitiveAnalysisResult;
+    try {
+      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      data = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(result);
+    } catch {
+      data = {
+        swot: { strengths: [], weaknesses: [], opportunities: [], threats: [] },
+        competitors: [],
+        differentiationStrategy: '',
+        riskFactors: [],
+      };
+    }
+
+    return NextResponse.json({ success: true, data });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '경쟁 분석에 실패했습니다';
+    return NextResponse.json(
+      { success: false, error: { code: 'COMPETITIVE_ERROR', message } },
+      { status: 500 },
+    );
+  }
+}

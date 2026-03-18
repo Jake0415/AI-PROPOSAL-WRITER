@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { generateSections } from '@/lib/services/section-generator.service';
+import { generatePrice } from '@/lib/services/price.service';
 import { createSSEResponse } from '@/lib/utils/sse-stream';
 
 export async function POST(
@@ -9,8 +9,8 @@ export async function POST(
   const { id: projectId } = await params;
 
   return createSSEResponse(
-    (onProgress) => generateSections(projectId, onProgress),
-    'GENERATION_ERROR',
-    '섹션 생성 중 오류가 발생했습니다',
+    (onProgress) => generatePrice(projectId, onProgress),
+    'PRICE_ERROR',
+    '가격 산출에 실패했습니다',
   );
 }
