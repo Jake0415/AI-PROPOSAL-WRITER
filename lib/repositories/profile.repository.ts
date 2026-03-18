@@ -18,9 +18,19 @@ export const profileRepository = {
     return results[0];
   },
 
+  async findByEmail(email: string) {
+    const db = getDb();
+    const results = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.email, email));
+    return results[0];
+  },
+
   async upsert(data: {
     id: string;
     email: string;
+    passwordHash: string;
     name: string;
     role?: AppRole;
     avatarUrl?: string | null;
@@ -43,6 +53,7 @@ export const profileRepository = {
       await db.insert(profiles).values({
         id: data.id,
         email: data.email,
+        passwordHash: data.passwordHash,
         name: data.name,
         role: data.role ?? 'viewer',
         avatarUrl: data.avatarUrl ?? null,

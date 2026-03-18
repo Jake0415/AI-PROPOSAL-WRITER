@@ -1,21 +1,41 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: aiprowriter
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aiprowriter}
+      POSTGRES_DB: aiprowriter
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aiprowriter"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   app:
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
         NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-AIPROWRITER}
         NEXT_PUBLIC_APP_DESCRIPTION: ${NEXT_PUBLIC_APP_DESCRIPTION:-RFP를 업로드하면 AI가 분석하여 완성된 제안서를 자동 생성합니다}
     ports:
       - "3100:3000"
     env_file:
       - .env.local
+    environment:
+      DATABASE_URL: postgresql://aiprowriter:${POSTGRES_PASSWORD:-aiprowriter}@db:5432/aiprowriter
     volumes:
       - upload-data:/app/data/uploads
       - output-data:/app/data/outputs
       - template-data:/app/data/templates
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
@@ -39,11 +59,17 @@ services:
       target: builder
     env_file:
       - .env.local
+    environment:
+      DATABASE_URL: postgresql://aiprowriter:${POSTGRES_PASSWORD:-aiprowriter}@db:5432/aiprowriter
     command: npx drizzle-kit push
+    depends_on:
+      db:
+        condition: service_healthy
     profiles:
       - migration
 
 volumes:
+  pg-data:
   upload-data:
   output-data:
   template-data:

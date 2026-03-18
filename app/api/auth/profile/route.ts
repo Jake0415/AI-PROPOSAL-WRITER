@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { profileRepository } from '@/lib/repositories/profile.repository';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { getSessionFromCookies } from '@/lib/auth/session';
 
-// 프로필 조회 (자동 upsert)
+// 프로필 조회
 export async function GET(request: NextRequest) {
   try {
     const userId = request.nextUrl.searchParams.get('userId');
@@ -13,18 +13,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Supabase에서 사용자 정보 가져와 프로필 upsert
-    const supabase = await createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (user && user.id === userId) {
-      const profile = await profileRepository.upsert({
-        id: user.id,
-        email: user.email ?? '',
-        name: user.user_metadata?.name ?? user.email?.split('@')[0] ?? '',
-        avatarUrl: user.user_metadata?.avatar_url ?? null,
-      });
-      return NextResponse.json({ success: true, data: profile });
+    // 현재 세션 사용자인 경우 프로필 반환
+    const session = await getSessionFromCookies();
+    if (session && session.userId === userId) {
+      const profile = await profileRepository.findByUserId(userId);
+      if (profile) {
+        return NextResponse.json({ success: true, data: profile });
+      }
     }
 
     // 다른 사용자 프로필 조회
