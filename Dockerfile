@@ -12,7 +12,19 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+
+# Build-time 환경변수 (NEXT_PUBLIC_* 은 빌드 시점에 인라인됨)
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG NEXT_PUBLIC_APP_NAME=AIPROWRITER
+ARG NEXT_PUBLIC_APP_DESCRIPTION
+
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME
+ENV NEXT_PUBLIC_APP_DESCRIPTION=$NEXT_PUBLIC_APP_DESCRIPTION
 ENV NEXT_TELEMETRY_DISABLED=1
+
 RUN npm run build
 
 # 프로덕션 실행
@@ -30,12 +42,16 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# 업로드 디렉토리 생성
-RUN mkdir -p data/uploads && chown nextjs:nodejs data/uploads
+# 데이터 디렉토리 생성
+RUN mkdir -p data/uploads data/outputs data/templates && \
+    chown -R nextjs:nodejs data
 
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
 CMD ["node", "server.js"]

@@ -6,33 +6,31 @@ import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './theme-toggle';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { LogOut, User } from 'lucide-react';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+
+interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+}
 
 export function Navbar() {
   const router = useRouter();
-  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
-    const supabase = createSupabaseBrowserClient();
-
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) setUser(data.data);
+      })
+      .catch(() => {});
   }, []);
 
   async function handleLogout() {
-    const supabase = createSupabaseBrowserClient();
-    await supabase.auth.signOut();
+    await fetch('/api/auth/logout', { method: 'POST' });
+    setUser(null);
     router.push('/auth/login');
     router.refresh();
   }
@@ -90,7 +88,7 @@ export function Navbar() {
               <>
                 <span className="text-xs text-muted-foreground hidden sm:inline-flex items-center gap-1">
                   <User className="h-3 w-3" />
-                  {user.user_metadata?.name ?? user.email}
+                  {user.name || user.email}
                 </span>
                 <Button
                   variant="ghost"

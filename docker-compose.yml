@@ -3,13 +3,47 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-AIPROWRITER}
+        NEXT_PUBLIC_APP_DESCRIPTION: ${NEXT_PUBLIC_APP_DESCRIPTION:-RFP를 업로드하면 AI가 분석하여 완성된 제안서를 자동 생성합니다}
     ports:
-      - "3000:3000"
+      - "3100:3000"
     env_file:
       - .env.local
     volumes:
       - upload-data:/app/data/uploads
+      - output-data:/app/data/outputs
+      - template-data:/app/data/templates
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+
+  # DB 마이그레이션 (필요시 실행: docker compose --profile migration run migrate)
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    env_file:
+      - .env.local
+    command: npx drizzle-kit push
+    profiles:
+      - migration
 
 volumes:
   upload-data:
+  output-data:
+  template-data:

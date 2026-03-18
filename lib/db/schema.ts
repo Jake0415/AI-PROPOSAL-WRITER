@@ -17,13 +17,14 @@ export type ProjectStatus =
 
 export type SectionStatus = 'pending' | 'generating' | 'generated' | 'edited';
 
-// ─── Profiles (Supabase auth.users 연동) ────────────────────
+// ─── Profiles ────────────────────────────────────────────────
 
 export type AppRole = 'admin' | 'proposal_pm' | 'tech_writer' | 'viewer';
 
 export const profiles = aiprowriterSchema.table('profiles', {
-  id: text('id').primaryKey(), // Supabase auth.users.id
+  id: text('id').primaryKey(),
   email: text('email').notNull(),
+  passwordHash: text('password_hash').notNull(),
   name: text('name').notNull().default(''),
   role: text('role').$type<AppRole>().notNull().default('viewer'),
   avatarUrl: text('avatar_url'),

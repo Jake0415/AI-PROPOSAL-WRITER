@@ -4,6 +4,9 @@ node_modules
 .env*
 !.env.example
 data/
-drizzle/
 *.md
 .claude/
+e2e/
+docs/
+playwright.config.ts
+vitest.config.ts

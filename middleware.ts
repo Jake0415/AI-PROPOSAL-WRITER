@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { updateSession } from '@/lib/supabase/middleware';
+import { jwtVerify } from 'jose';
 import { generateRequestId, logger } from '@/lib/logger';
 import { checkRateLimit } from '@/lib/security/rate-limiter';
 
@@ -19,6 +19,22 @@ function getClientIp(request: NextRequest): string {
   return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
     ?? request.headers.get('x-real-ip')
     ?? '127.0.0.1';
+}
+
+// Edge Runtime 호환 JWT 검증
+async function verifyAuthToken(request: NextRequest): Promise<boolean> {
+  const token = request.cookies.get('auth-token')?.value;
+  if (!token) return false;
+
+  const secret = process.env.JWT_SECRET;
+  if (!secret) return false;
+
+  try {
+    await jwtVerify(token, new TextEncoder().encode(secret));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function middleware(request: NextRequest) {
@@ -55,23 +71,25 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // 세션 갱신
-  const { user, supabaseResponse } = await updateSession(request);
+  // JWT 검증
+  const isAuthenticated = await verifyAuthToken(request);
+
+  const response = NextResponse.next();
 
   // 응답 헤더에 requestId + 보안 헤더 추가
-  supabaseResponse.headers.set('X-Request-Id', requestId);
-  supabaseResponse.headers.set('X-Content-Type-Options', 'nosniff');
-  supabaseResponse.headers.set('X-Frame-Options', 'DENY');
-  supabaseResponse.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('X-Request-Id', requestId);
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
   // 공개 경로는 통과
   if (isPublicPath(pathname)) {
     logRequest(requestId, request, 200, start);
-    return supabaseResponse;
+    return response;
   }
 
   // 미인증 사용자 처리
-  if (!user) {
+  if (!isAuthenticated) {
     if (pathname.startsWith('/api/')) {
       logRequest(requestId, request, 401, start);
       return NextResponse.json(
@@ -86,7 +104,7 @@ export async function middleware(request: NextRequest) {
   }
 
   logRequest(requestId, request, 200, start);
-  return supabaseResponse;
+  return response;
 }
 
 function logRequest(requestId: string, request: NextRequest, status: number, start: number) {

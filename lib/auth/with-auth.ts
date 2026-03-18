@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { getSessionFromCookies } from './session';
 import { profileRepository } from '@/lib/repositories/profile.repository';
 import { isRoleAtLeast } from './roles';
 import type { AppRole } from '@/lib/db/schema';
@@ -12,20 +12,19 @@ interface AuthenticatedUser {
 
 // API 라우트에서 인증된 사용자 요구
 export async function requireAuth(): Promise<AuthenticatedUser | NextResponse> {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const session = await getSessionFromCookies();
 
-  if (!user) {
+  if (!session) {
     return NextResponse.json(
       { success: false, error: { code: 'UNAUTHORIZED', message: '인증이 필요합니다' } },
       { status: 401 },
     );
   }
 
-  const profile = await profileRepository.findByUserId(user.id);
+  const profile = await profileRepository.findByUserId(session.userId);
   return {
-    id: user.id,
-    email: user.email ?? '',
+    id: session.userId,
+    email: session.email,
     role: (profile?.role as AppRole) ?? 'viewer',
   };
 }
