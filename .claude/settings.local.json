@@ -38,7 +38,14 @@
       "Bash(grep -r \"ANTHROPIC_API_KEY\\\\|@anthropic-ai/sdk\" /c/claude-code/AI-PROPOSAL-WRITER/lib --include=*.ts --include=*.tsx)",
       "Bash(node -e \":*)",
       "Bash(find /c/claude-code/AI-PROPOSAL-WRITER/app/api -type f -name *.ts)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(curl -s http://localhost:3004/auth/login)",
+      "Bash(curl -s http://localhost:3004/api/projects)",
+      "Bash(curl -s http://localhost:3004/api/settings/ai)",
+      "Bash(curl -s http://localhost:3004/api/admin/stats)",
+      "Bash(curl -s http://localhost:3004/api/templates)",
+      "Bash(/dev/null echo:*)",
+      "Bash(head -c 80 echo \"\" echo \"\" __NEW_LINE_6677f3d95cd2a361__ echo \"4. Supabase Auth\" echo \"  회원가입: 성공 \\(test@aiprowriter.com\\)\" echo \"  이메일 확인: 완료\" echo \"  로그인: 성공 \\(토큰 발급\\)\" echo \"\" __NEW_LINE_6677f3d95cd2a361__ echo \"5. DB 연결 \\(Supabase PostgreSQL\\)\" echo \"  스키마: aiprowriter \\(10개 테이블\\)\")"
     ],
     "deny": [
       "Bash(rm:*)",

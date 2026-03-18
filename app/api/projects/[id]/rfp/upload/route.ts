@@ -4,6 +4,13 @@ import path from 'path';
 import { parseRfpFile } from '@/lib/services/rfp-parser.service';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
 import { projectRepository } from '@/lib/repositories/project.repository';
+import {
+  sanitizeFileName,
+  isAllowedMimeType,
+  isAllowedFileSize,
+} from '@/lib/security/sanitize';
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 export async function POST(
   request: NextRequest,
@@ -30,6 +37,22 @@ export async function POST(
       );
     }
 
+    // 파일 크기 검증
+    if (!isAllowedFileSize(file.size, MAX_FILE_SIZE)) {
+      return NextResponse.json(
+        { success: false, error: { code: 'FILE_TOO_LARGE', message: '파일 크기는 50MB 이하여야 합니다' } },
+        { status: 400 },
+      );
+    }
+
+    // MIME 타입 검증
+    if (!isAllowedMimeType(file.type, ['pdf', 'docx'])) {
+      return NextResponse.json(
+        { success: false, error: { code: 'INVALID_MIME', message: 'PDF 또는 DOCX 파일만 지원합니다' } },
+        { status: 400 },
+      );
+    }
+
     const ext = file.name.split('.').pop()?.toLowerCase();
     if (ext !== 'pdf' && ext !== 'docx') {
       return NextResponse.json(
@@ -40,11 +63,13 @@ export async function POST(
 
     const fileType = ext as 'pdf' | 'docx';
     const buffer = Buffer.from(await file.arrayBuffer());
+    // 파일명 새니타이징
+    const safeName = sanitizeFileName(file.name);
 
     // 파일 저장
     const uploadDir = path.join(process.cwd(), 'data', 'uploads', projectId);
     await mkdir(uploadDir, { recursive: true });
-    const filePath = path.join(uploadDir, file.name);
+    const filePath = path.join(uploadDir, safeName);
     await writeFile(filePath, buffer);
 
     // 텍스트 추출
@@ -53,7 +78,7 @@ export async function POST(
     // DB 저장
     const rfpFile = await rfpRepository.createFile({
       projectId,
-      fileName: file.name,
+      fileName: safeName,
       fileType,
       filePath,
       fileSize: file.size,

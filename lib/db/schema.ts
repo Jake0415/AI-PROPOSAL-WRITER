@@ -15,6 +15,32 @@ export type ProjectStatus =
 
 export type SectionStatus = 'pending' | 'generating' | 'generated' | 'edited';
 
+// ─── Profiles (Supabase auth.users 연동) ────────────────────
+
+export type AppRole = 'admin' | 'proposal_pm' | 'tech_writer' | 'viewer';
+
+export const profiles = aiprowriterSchema.table('profiles', {
+  id: text('id').primaryKey(), // Supabase auth.users.id
+  email: text('email').notNull(),
+  name: text('name').notNull().default(''),
+  role: text('role').$type<AppRole>().notNull().default('viewer'),
+  avatarUrl: text('avatar_url'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+// ─── Project Members (RBAC) ─────────────────────────────────
+
+export type ProjectRole = 'owner' | 'editor' | 'viewer';
+
+export const projectMembers = aiprowriterSchema.table('project_members', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  role: text('role').$type<ProjectRole>().notNull().default('viewer'),
+  createdAt: text('created_at').notNull(),
+});
+
 // ─── Projects ───────────────────────────────────────────────
 
 export const projects = aiprowriterSchema.table('projects', {
