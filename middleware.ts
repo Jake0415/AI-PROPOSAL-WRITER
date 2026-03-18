@@ -38,8 +38,16 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
 
-  // 미인증 사용자 → 로그인 페이지로 리다이렉트
+  // 미인증 사용자 처리
   if (!user) {
+    // API 요청은 JSON 에러 응답
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: '인증이 필요합니다' } },
+        { status: 401 },
+      );
+    }
+    // 페이지 요청은 로그인으로 리다이렉트
     const loginUrl = new URL('/auth/login', request.url);
     loginUrl.searchParams.set('redirectTo', pathname);
     return NextResponse.redirect(loginUrl);
