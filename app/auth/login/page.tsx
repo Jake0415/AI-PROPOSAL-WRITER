@@ -1,13 +1,17 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { Loader2, FileText } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirectTo') || '/';
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -33,7 +37,7 @@ export default function LoginPage() {
         return;
       }
 
-      window.location.href = '/';
+      window.location.href = redirectTo;
     } catch {
       setError('서버에 연결할 수 없습니다');
       setLoading(false);
@@ -44,9 +48,15 @@ export default function LoginPage() {
     <div className="min-h-[calc(100vh-3.5rem-3rem)] flex items-center justify-center px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
+          <div className="flex justify-center mb-3">
+            <div className="flex items-center gap-2">
+              <FileText className="h-8 w-8 text-primary" />
+              <span className="text-xl font-bold">AIPROWRITER</span>
+            </div>
+          </div>
           <CardTitle className="text-xl">로그인</CardTitle>
           <CardDescription>
-            계정에 로그인하세요
+            AI 제안서 자동 생성 시스템
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit} className="px-6 pb-6 space-y-4">
@@ -86,5 +96,17 @@ export default function LoginPage() {
         </form>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[calc(100vh-3.5rem-3rem)] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -25,7 +25,9 @@
       "Bash(PLAYWRIGHT_BASE_URL=http://localhost:3100 npx playwright test --reporter=list)",
       "Bash(npm install:*)",
       "Bash(DATABASE_URL=postgresql://aiprowriter:aiprowriter@localhost:5434/aiprowriter npx tsx scripts/seed.ts)",
-      "Bash(DATABASE_URL=postgresql://aiprowriter:aiprowriter@localhost:5434/aiprowriter npx drizzle-kit push)"
+      "Bash(DATABASE_URL=postgresql://aiprowriter:aiprowriter@localhost:5434/aiprowriter npx drizzle-kit push)",
+      "Bash(DATABASE_URL=postgresql://aiprowriter:aiprowriter@localhost:5434/aiprowriter npx tsx scripts/seed-data.ts)",
+      "Bash(PLAYWRIGHT_BASE_URL=http://localhost:3100 npx playwright test e2e/scenario.spec.ts --reporter=list)"
     ]
   }
 }
