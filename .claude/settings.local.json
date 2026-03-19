@@ -23,18 +23,7 @@
       "mcp__slack__slack_get_channel_history",
       "mcp__slack__slack_get_thread_replies",
       "mcp__claude_ai_Gmail",
-      "mcp__shrimp-task-manager",
-      "Bash(git pull:*)",
-      "Bash(git stash:*)",
-      "Bash(git push:*)",
-      "Bash(git commit:*)",
-      "Bash(git checkout:*)",
-      "Bash(git branch:*)",
-      "Bash(git merge:*)",
-      "Bash(docker:*)",
-      "Bash(docker-compose:*)",
-      "Bash(npm:*)",
-      "Bash(npx:*)"
+      "mcp__shrimp-task-manager"
     ],
     "deny": [
       "Bash(rm -rf /:*)",
@@ -42,7 +31,14 @@
       "Bash(git reset --hard:*)",
       "Bash(DROP DATABASE:*)"
     ],
-    "ask": []
+    "ask": [
+      "Bash(npm install:*)",
+      "Bash(npm add:*)",
+      "Bash(pip install:*)",
+      "Bash(apt install:*)",
+      "Bash(brew install:*)",
+      "Bash(npx shadcn:*)"
+    ]
   },
   "enableAllProjectMcpServers": true,
   "hooks": {
