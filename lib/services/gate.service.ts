@@ -87,7 +87,7 @@ async function checkGate2(projectId: string): Promise<GateCheckResult> {
 
   const analysis = await rfpRepository.getAnalysisByProjectId(projectId);
   if (analysis) {
-    const requirements = JSON.parse(analysis.requirements) as Array<{ mandatory: boolean }>;
+    const requirements = analysis.requirements;
     const mandatoryCount = requirements.filter((r) => r.mandatory).length;
     checks.push({
       name: '필수 요구사항 존재',

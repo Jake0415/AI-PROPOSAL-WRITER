@@ -53,10 +53,10 @@ export async function generateReview(
   onProgress?.({ step: '제안서 검증 중 (AI 분석)', progress: 30 });
 
   const analysisJson = JSON.stringify({
-    overview: JSON.parse(analysis.overview),
-    evaluationItems: JSON.parse(analysis.evaluationItems),
-    requirements: JSON.parse(analysis.requirements),
-    traceabilityMatrix: JSON.parse(analysis.traceabilityMatrix),
+    overview: analysis.overview,
+    evaluationItems: analysis.evaluationItems,
+    requirements: analysis.requirements,
+    traceabilityMatrix: analysis.traceabilityMatrix,
   });
 
   const sectionsJson = JSON.stringify(
@@ -70,8 +70,8 @@ export async function generateReview(
   const strategyJson = strategy
     ? JSON.stringify({
         competitiveStrategy: strategy.competitiveStrategy,
-        differentiators: JSON.parse(strategy.differentiators),
-        keyMessages: JSON.parse(strategy.keyMessages),
+        differentiators: strategy.differentiators,
+        keyMessages: strategy.keyMessages,
       })
     : '{}';
 
@@ -93,9 +93,9 @@ export async function generateReview(
     evalCoverage: reviewData.evalCoverage,
     reqCoverage: reviewData.reqCoverage,
     formatCompliance: reviewData.formatCompliance,
-    evalResults: JSON.stringify(reviewData.evalResults ?? []),
-    reqResults: JSON.stringify(reviewData.reqResults ?? []),
-    improvements: JSON.stringify(reviewData.improvements ?? []),
+    evalResults: reviewData.evalResults ?? [],
+    reqResults: reviewData.reqResults ?? [],
+    improvements: reviewData.improvements ?? [],
     summary: reviewData.summary ?? '',
   });
 

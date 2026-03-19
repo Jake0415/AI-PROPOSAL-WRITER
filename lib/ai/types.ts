@@ -158,6 +158,9 @@ export interface OutlineSection {
   level: number;
   order: number;
   children: OutlineSection[];
+  evalItemId?: string;
+  evalScore?: number;
+  estimatedPages?: number;
 }
 
 // ─── 검증 리포트 타입 ────────────────────────────────────────

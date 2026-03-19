@@ -15,7 +15,7 @@ export interface GeneratedSection {
   sectionPath: string;
   title: string;
   content: string;
-  diagrams: string;
+  diagrams: unknown[];
   status: string;
 }
 
@@ -102,17 +102,17 @@ export async function generateSections(
   }
 
   const analysisJson = JSON.stringify({
-    overview: JSON.parse(analysis.overview),
-    requirements: JSON.parse(analysis.requirements),
-    evaluationCriteria: JSON.parse(analysis.evaluationCriteria),
+    overview: analysis.overview,
+    requirements: analysis.requirements,
+    evaluationCriteria: analysis.evaluationCriteria,
   });
   const writingStyle = (strategy as Record<string, unknown>).writingStyle as string | undefined;
   const strategyJson = JSON.stringify({
     competitiveStrategy: strategy.competitiveStrategy,
-    differentiators: JSON.parse(strategy.differentiators),
-    keyMessages: JSON.parse(strategy.keyMessages),
+    differentiators: strategy.differentiators,
+    keyMessages: strategy.keyMessages,
   });
-  const outlineSections: OutlineSection[] = JSON.parse(outline.sections);
+  const outlineSections = outline.sections;
   const outlineJson = JSON.stringify(outlineSections);
 
   const leafSections = flattenLeafSections(outlineSections);
@@ -152,7 +152,7 @@ export async function generateSections(
         sectionPath: leaf.path,
         title: leaf.title,
         content: sectionData.content ?? '',
-        diagrams: JSON.stringify(sectionData.diagrams ?? []),
+        diagrams: sectionData.diagrams ?? [],
         status: 'generated',
       });
 
@@ -168,7 +168,7 @@ export async function generateSections(
         sectionPath: leaf.path,
         title: leaf.title,
         content: sectionData.content ?? '',
-        diagrams: JSON.stringify(sectionData.diagrams ?? []),
+        diagrams: sectionData.diagrams ?? [],
         status: 'generated',
       };
     },

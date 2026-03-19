@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,12 +10,29 @@ import { Label } from '@/components/ui/label';
 import { Loader2, FileText } from 'lucide-react';
 
 function LoginForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirectTo') || '/';
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/setup')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.data?.needsSetup) {
+          router.replace('/setup');
+          return;
+        }
+        setChecking(false);
+      })
+      .catch(() => {
+        setChecking(false);
+      });
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,6 +59,14 @@ function LoginForm() {
       setError('서버에 연결할 수 없습니다');
       setLoading(false);
     }
+  }
+
+  if (checking) {
+    return (
+      <div className="min-h-[calc(100vh-3.5rem-3rem)] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   return (

@@ -16,12 +16,12 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: {
-        laborCosts: JSON.parse(price.laborCosts),
-        equipmentCosts: JSON.parse(price.equipmentCosts),
-        expenseCosts: JSON.parse(price.expenseCosts),
-        indirectCosts: JSON.parse(price.indirectCosts),
-        summary: JSON.parse(price.summary),
-        competitiveness: JSON.parse(price.competitiveness),
+        laborCosts: price.laborCosts,
+        equipmentCosts: price.equipmentCosts,
+        expenseCosts: price.expenseCosts,
+        indirectCosts: price.indirectCosts,
+        summary: price.summary,
+        competitiveness: price.competitiveness,
         generatedAt: price.generatedAt,
       },
     });

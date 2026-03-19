@@ -1,7 +1,15 @@
 import { eq } from 'drizzle-orm';
-import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@/lib/db/client';
 import { rfpFiles, rfpAnalyses } from '@/lib/db/schema';
+import type {
+  StructuredRequirement,
+  EvaluationCriterion,
+  EvaluationItem,
+  TraceabilityMapping,
+  Qualification,
+  StrategyPoint,
+  RecommendedChapter,
+} from '@/lib/ai/types';
 
 export const rfpRepository = {
   async createFile(data: {
@@ -13,12 +21,7 @@ export const rfpRepository = {
     rawText: string;
   }) {
     const db = getDb();
-    const file = {
-      id: uuidv4(),
-      ...data,
-      uploadedAt: new Date().toISOString(),
-    };
-    await db.insert(rfpFiles).values(file);
+    const [file] = await db.insert(rfpFiles).values(data).returning();
     return file;
   },
 
@@ -33,30 +36,27 @@ export const rfpRepository = {
 
   async createAnalysis(data: {
     projectId: string;
-    overview: string;
-    requirements: string;
-    evaluationCriteria: string;
-    evaluationItems?: string;
-    traceabilityMatrix?: string;
-    qualifications?: string;
-    strategyPoints?: string;
-    recommendedChapters?: string;
-    scope: string;
-    constraints: string;
-    keywords: string;
+    overview: { projectName: string; client: string; budget: string; duration: string; summary: string; purpose?: string };
+    requirements: StructuredRequirement[];
+    evaluationCriteria: EvaluationCriterion[];
+    evaluationItems?: EvaluationItem[];
+    traceabilityMatrix?: TraceabilityMapping[];
+    qualifications?: Qualification[];
+    strategyPoints?: StrategyPoint[];
+    recommendedChapters?: RecommendedChapter[];
+    scope: { inScope: string[]; outOfScope: string[] };
+    constraints: { technical: string[]; business: string[]; timeline: string[] };
+    keywords: string[];
   }) {
     const db = getDb();
-    const analysis = {
-      id: uuidv4(),
+    const [analysis] = await db.insert(rfpAnalyses).values({
       ...data,
-      evaluationItems: data.evaluationItems ?? '[]',
-      traceabilityMatrix: data.traceabilityMatrix ?? '[]',
-      qualifications: data.qualifications ?? '[]',
-      strategyPoints: data.strategyPoints ?? '[]',
-      recommendedChapters: data.recommendedChapters ?? '[]',
-      analyzedAt: new Date().toISOString(),
-    };
-    await db.insert(rfpAnalyses).values(analysis);
+      evaluationItems: data.evaluationItems ?? [],
+      traceabilityMatrix: data.traceabilityMatrix ?? [],
+      qualifications: data.qualifications ?? [],
+      strategyPoints: data.strategyPoints ?? [],
+      recommendedChapters: data.recommendedChapters ?? [],
+    }).returning();
     return analysis;
   },
 
@@ -70,17 +70,17 @@ export const rfpRepository = {
   },
 
   async updateAnalysis(id: string, data: Partial<{
-    overview: string;
-    requirements: string;
-    evaluationCriteria: string;
-    evaluationItems: string;
-    traceabilityMatrix: string;
-    qualifications: string;
-    strategyPoints: string;
-    recommendedChapters: string;
-    scope: string;
-    constraints: string;
-    keywords: string;
+    overview: { projectName: string; client: string; budget: string; duration: string; summary: string; purpose?: string };
+    requirements: StructuredRequirement[];
+    evaluationCriteria: EvaluationCriterion[];
+    evaluationItems: EvaluationItem[];
+    traceabilityMatrix: TraceabilityMapping[];
+    qualifications: Qualification[];
+    strategyPoints: StrategyPoint[];
+    recommendedChapters: RecommendedChapter[];
+    scope: { inScope: string[]; outOfScope: string[] };
+    constraints: { technical: string[]; business: string[]; timeline: string[] };
+    keywords: string[];
   }>) {
     const db = getDb();
     await db.update(rfpAnalyses).set(data).where(eq(rfpAnalyses.id, id));

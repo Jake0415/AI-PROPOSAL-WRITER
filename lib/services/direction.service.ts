@@ -25,10 +25,10 @@ export async function generateDirections(
   onProgress?.({ step: '방향성 생성 중', progress: 30 });
 
   const analysisJson = JSON.stringify({
-    overview: JSON.parse(analysis.overview),
-    requirements: JSON.parse(analysis.requirements),
-    evaluationCriteria: JSON.parse(analysis.evaluationCriteria),
-    keywords: JSON.parse(analysis.keywords),
+    overview: analysis.overview,
+    requirements: analysis.requirements,
+    evaluationCriteria: analysis.evaluationCriteria,
+    keywords: analysis.keywords,
   });
 
   const result = await generateText({
@@ -48,7 +48,7 @@ export async function generateDirections(
     candidates = [];
   }
 
-  await proposalRepository.createDirection(projectId, JSON.stringify(candidates));
+  await proposalRepository.createDirection(projectId, candidates);
 
   onProgress?.({ step: '완료', progress: 100 });
 

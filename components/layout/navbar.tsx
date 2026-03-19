@@ -15,10 +15,16 @@ interface AuthUser {
   role: string;
 }
 
+interface TenantBranding {
+  appName: string;
+  logoUrl: string;
+}
+
 export function Navbar() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [checked, setChecked] = useState(false);
+  const [branding, setBranding] = useState<TenantBranding>({ appName: 'AIPROWRITER', logoUrl: '' });
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -28,6 +34,18 @@ export function Navbar() {
       })
       .catch(() => {})
       .finally(() => setChecked(true));
+
+    fetch('/api/settings/tenant')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.data) {
+          setBranding({
+            appName: data.data.appName || 'AIPROWRITER',
+            logoUrl: data.data.logoUrl || '',
+          });
+        }
+      })
+      .catch(() => {});
   }, []);
 
   async function handleLogout() {
@@ -47,9 +65,13 @@ export function Navbar() {
       <div className="container mx-auto flex h-14 max-w-screen-2xl items-center px-4">
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <FileText className="h-5 w-5 text-primary" />
+            {branding.logoUrl ? (
+              <img src={branding.logoUrl} alt="로고" className="h-5 w-5 object-contain" />
+            ) : (
+              <FileText className="h-5 w-5 text-primary" />
+            )}
             <span className="hidden font-bold sm:inline-block">
-              AIPROWRITER
+              {branding.appName}
             </span>
           </Link>
           <nav className="flex items-center gap-4 text-sm lg:gap-6">
@@ -72,6 +94,15 @@ export function Navbar() {
                 </Link>
                 <Link href="/admin/users" className="transition-colors hover:text-foreground/80 text-muted-foreground">
                   사용자
+                </Link>
+                <Link href="/admin/customization" className="transition-colors hover:text-foreground/80 text-muted-foreground">
+                  브랜딩
+                </Link>
+                <Link href="/admin/audit" className="transition-colors hover:text-foreground/80 text-muted-foreground">
+                  감사 로그
+                </Link>
+                <Link href="/admin/data" className="transition-colors hover:text-foreground/80 text-muted-foreground">
+                  데이터 관리
                 </Link>
               </>
             )}

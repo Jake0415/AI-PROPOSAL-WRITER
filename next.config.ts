@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
   },
 
-  serverExternalPackages: ['pdf-parse'],
+  serverExternalPackages: ['pdf-parse', 'bcryptjs', 'postgres', 'drizzle-orm', 'jose', 'uuid'],
 
   experimental: {
     optimizePackageImports: ["lucide-react"],

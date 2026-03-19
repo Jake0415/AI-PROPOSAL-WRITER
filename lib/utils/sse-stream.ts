@@ -6,6 +6,9 @@
 export interface SSEProgress {
   step: string;
   progress: number;
+  stepIndex?: number;
+  totalSteps?: number;
+  steps?: string[];
 }
 
 export function createSSEResponse<T>(

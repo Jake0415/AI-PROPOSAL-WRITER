@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proposalRepository } from '@/lib/repositories/proposal.repository';
+import type { OutlineSection } from '@/lib/ai/types';
 
 // 목차 조회
 export async function GET(
@@ -17,7 +18,7 @@ export async function GET(
     }
     return NextResponse.json({
       success: true,
-      data: { id: outline.id, sections: JSON.parse(outline.sections) },
+      data: { id: outline.id, sections: outline.sections },
     });
   } catch {
     return NextResponse.json(
@@ -35,7 +36,7 @@ export async function PUT(
   const { id: projectId } = await params;
   try {
     const body = await request.json();
-    const { sections } = body as { sections: unknown[] };
+    const { sections } = body as { sections: OutlineSection[] };
 
     if (!sections || !Array.isArray(sections)) {
       return NextResponse.json(
@@ -52,7 +53,7 @@ export async function PUT(
       );
     }
 
-    await proposalRepository.updateOutline(outline.id, JSON.stringify(sections));
+    await proposalRepository.updateOutline(outline.id, sections);
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json(

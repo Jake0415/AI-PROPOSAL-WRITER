@@ -23,10 +23,10 @@ export async function POST(
     }
 
     const analysisJson = JSON.stringify({
-      overview: JSON.parse(analysis.overview),
-      requirements: JSON.parse(analysis.requirements),
-      evaluationItems: JSON.parse(analysis.evaluationItems),
-      keywords: JSON.parse(analysis.keywords),
+      overview: analysis.overview,
+      requirements: analysis.requirements,
+      evaluationItems: analysis.evaluationItems,
+      keywords: analysis.keywords,
     });
 
     const result = await generateText({

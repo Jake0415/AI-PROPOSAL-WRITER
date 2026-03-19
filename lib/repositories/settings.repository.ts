@@ -16,14 +16,12 @@ export const settingsRepository = {
     if (results[0]) return results[0];
 
     // 기본 설정이 없으면 생성
-    const defaultSettings = {
+    const [defaultSettings] = await db.insert(aiSettings).values({
       id: DEFAULT_SETTINGS_ID,
       provider: 'claude' as AiProviderType,
       claudeModel: 'claude-sonnet-4-6',
       gptModel: 'gpt-4o',
-      updatedAt: new Date().toISOString(),
-    };
-    await db.insert(aiSettings).values(defaultSettings);
+    }).returning();
     return defaultSettings;
   },
 
@@ -38,7 +36,7 @@ export const settingsRepository = {
       .update(aiSettings)
       .set({
         ...data,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(aiSettings.id, existing.id));
 

@@ -8,13 +8,12 @@
 
 ## 목표
 
-Supabase Auth를 활용하여 이메일/비밀번호 인증을 구현한다. Next.js 미들웨어로 모든 페이지/API를 보호하고, SSO는 Supabase의 SAML/OIDC 지원으로 향후 확장한다.
+커스텀 JWT 인증으로 이메일/비밀번호 인증을 구현한다. Next.js 미들웨어로 모든 페이지/API를 보호한다.
 
 ## Supabase Auth 활용 장점
 
 - 비밀번호 해싱, 세션 관리, 토큰 갱신 자동 처리
 - Row Level Security(RLS)와 연동 가능
-- SSO/SAML/OIDC 프로바이더 내장 (Task 035 간소화)
 - 이메일 인증, 비밀번호 재설정 내장
 
 ## 구현 사항

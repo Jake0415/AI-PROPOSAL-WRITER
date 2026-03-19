@@ -85,16 +85,8 @@ npx shadcn@latest add [component-name]  # shadcn/ui 컴포넌트 추가
 
 | 환경 | URL | DB | 용도 |
 |------|-----|-----|------|
-| 로컬 dev | localhost:3000 | Docker DB (localhost:5434) | 개발 + 빠른 테스트 |
+| 로컬 dev | localhost:3100 | Docker DB (localhost:5434) | 개발 + 빠른 테스트 |
 | Docker 배포 | localhost:3100 | Docker DB (내부 db:5432) | 프로덕션 시뮬레이션 |
-
-### 시드 계정
-
-| 역할 | 아이디 | 비밀번호 |
-|------|--------|----------|
-| 최고관리자 | superadmin | admin1234 |
-| 관리자 | admin | admin1234 |
-| 테스트 | testuser | test1234 |
 
 ## 아키텍처 개요
 

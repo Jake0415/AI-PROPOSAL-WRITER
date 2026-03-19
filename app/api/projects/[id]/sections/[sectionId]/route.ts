@@ -15,7 +15,7 @@ export async function PUT(
     await proposalRepository.updateSection(sectionId, {
       content,
       status: 'edited',
-      editedAt: new Date().toISOString(),
+      editedAt: new Date(),
     });
 
     return NextResponse.json({ success: true });

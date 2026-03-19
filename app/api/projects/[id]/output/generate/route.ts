@@ -8,7 +8,6 @@ import {
   generateWordDocument,
   generatePptDocument,
 } from '@/lib/services/document-generator.service';
-import type { OutlineSection } from '@/lib/ai/types';
 
 export async function POST(
   request: NextRequest,
@@ -50,15 +49,15 @@ export async function POST(
       );
     }
 
-    const overview = JSON.parse(analysis.overview);
-    const outlineSections: OutlineSection[] = JSON.parse(outline.sections);
+    const overview = analysis.overview;
+    const outlineSections = outline.sections;
 
     const proposalData = {
       projectName: overview.projectName ?? '제안서',
       client: overview.client ?? '',
       overview: overview.summary ?? '',
       competitiveStrategy: strategy?.competitiveStrategy ?? '',
-      keyMessages: strategy ? JSON.parse(strategy.keyMessages) : [],
+      keyMessages: strategy ? strategy.keyMessages : [],
       outlineSections,
       sections: sections.map((s) => ({
         sectionPath: s.sectionPath,

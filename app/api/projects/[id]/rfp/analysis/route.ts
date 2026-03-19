@@ -18,15 +18,7 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      data: {
-        ...analysis,
-        overview: JSON.parse(analysis.overview),
-        requirements: JSON.parse(analysis.requirements),
-        evaluationCriteria: JSON.parse(analysis.evaluationCriteria),
-        scope: JSON.parse(analysis.scope),
-        constraints: JSON.parse(analysis.constraints),
-        keywords: JSON.parse(analysis.keywords),
-      },
+      data: analysis,
     });
   } catch {
     return NextResponse.json(

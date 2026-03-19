@@ -1,40 +1,26 @@
 import { eq, desc } from 'drizzle-orm';
-import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@/lib/db/client';
 import { projects } from '@/lib/db/schema';
 import type { ProjectStatus } from '@/lib/db/schema';
 
-export interface ProjectData {
-  id: string;
-  title: string;
-  status: ProjectStatus;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export const projectRepository = {
-  async findAll(): Promise<ProjectData[]> {
+  async findAll() {
     const db = getDb();
     return db.select().from(projects).orderBy(desc(projects.createdAt));
   },
 
-  async findById(id: string): Promise<ProjectData | undefined> {
+  async findById(id: string) {
     const db = getDb();
     const results = await db.select().from(projects).where(eq(projects.id, id));
     return results[0];
   },
 
-  async create(title: string): Promise<ProjectData> {
+  async create(title: string) {
     const db = getDb();
-    const now = new Date().toISOString();
-    const project: ProjectData = {
-      id: uuidv4(),
+    const [project] = await db.insert(projects).values({
       title,
-      status: 'uploaded',
-      createdAt: now,
-      updatedAt: now,
-    };
-    await db.insert(projects).values(project);
+      status: 'uploaded' as ProjectStatus,
+    }).returning();
     return project;
   },
 
@@ -42,7 +28,7 @@ export const projectRepository = {
     const db = getDb();
     await db
       .update(projects)
-      .set({ status, updatedAt: new Date().toISOString() })
+      .set({ status, updatedAt: new Date() })
       .where(eq(projects.id, id));
   },
 

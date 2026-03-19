@@ -2,12 +2,20 @@
 
 import { useState, useCallback } from 'react';
 
+export interface SSEStepInfo {
+  label: string;
+  status: 'pending' | 'active' | 'complete';
+}
+
 interface SSEState<T> {
   isLoading: boolean;
   progress: number;
   step: string;
   result: T | null;
   error: string | null;
+  steps: SSEStepInfo[];
+  stepIndex: number;
+  totalSteps: number;
 }
 
 export function useSSE<T = unknown>() {
@@ -17,10 +25,22 @@ export function useSSE<T = unknown>() {
     step: '',
     result: null,
     error: null,
+    steps: [],
+    stepIndex: -1,
+    totalSteps: 0,
   });
 
   const execute = useCallback(async (url: string, options?: RequestInit) => {
-    setState({ isLoading: true, progress: 0, step: '시작...', result: null, error: null });
+    setState({
+      isLoading: true,
+      progress: 0,
+      step: '시작...',
+      result: null,
+      error: null,
+      steps: [],
+      stepIndex: -1,
+      totalSteps: 0,
+    });
 
     try {
       const response = await fetch(url, { method: 'POST', ...options });
@@ -47,11 +67,37 @@ export function useSSE<T = unknown>() {
           try {
             const event = JSON.parse(line.slice(6));
             if (event.type === 'progress') {
-              setState((prev) => ({
-                ...prev,
-                progress: event.data.progress ?? prev.progress,
-                step: event.data.step ?? prev.step,
-              }));
+              setState((prev) => {
+                const newStepIndex = event.data.stepIndex ?? prev.stepIndex;
+                const newTotalSteps = event.data.totalSteps ?? prev.totalSteps;
+
+                // steps 라벨 목록이 처음 전달되면 초기화
+                let newSteps = prev.steps;
+                if (event.data.steps && event.data.steps.length > 0 && prev.steps.length === 0) {
+                  newSteps = event.data.steps.map((label: string) => ({
+                    label,
+                    status: 'pending' as const,
+                  }));
+                }
+
+                // stepIndex 기반으로 상태 업데이트
+                if (newSteps.length > 0 && newStepIndex >= 0) {
+                  newSteps = newSteps.map((s: SSEStepInfo, i: number) => {
+                    if (i < newStepIndex) return { ...s, status: 'complete' as const };
+                    if (i === newStepIndex) return { ...s, status: 'active' as const };
+                    return { ...s, status: 'pending' as const };
+                  });
+                }
+
+                return {
+                  ...prev,
+                  progress: event.data.progress ?? prev.progress,
+                  step: event.data.step ?? prev.step,
+                  stepIndex: newStepIndex,
+                  totalSteps: newTotalSteps,
+                  steps: newSteps,
+                };
+              });
             } else if (event.type === 'complete') {
               setState((prev) => ({
                 ...prev,
@@ -59,6 +105,7 @@ export function useSSE<T = unknown>() {
                 progress: 100,
                 step: '완료',
                 result: event.data.result as T,
+                steps: prev.steps.map((s) => ({ ...s, status: 'complete' as const })),
               }));
             } else if (event.type === 'error') {
               setState((prev) => ({

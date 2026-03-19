@@ -34,12 +34,12 @@ export async function generateStrategy(
   onProgress?.({ step: '전략 수립 중', progress: 30 });
 
   const analysisJson = JSON.stringify({
-    overview: JSON.parse(analysis.overview),
-    requirements: JSON.parse(analysis.requirements),
-    evaluationCriteria: JSON.parse(analysis.evaluationCriteria),
+    overview: analysis.overview,
+    requirements: analysis.requirements,
+    evaluationCriteria: analysis.evaluationCriteria,
   });
 
-  const candidates = JSON.parse(direction.candidates);
+  const candidates = direction.candidates;
   const selected = candidates[direction.selectedIndex ?? 0];
 
   const result = await generateText({
@@ -64,8 +64,8 @@ export async function generateStrategy(
 
   await proposalRepository.createStrategy(projectId, {
     competitiveStrategy: strategyData.competitiveStrategy ?? '',
-    differentiators: JSON.stringify(strategyData.differentiators ?? []),
-    keyMessages: JSON.stringify(strategyData.keyMessages ?? []),
+    differentiators: strategyData.differentiators ?? [],
+    keyMessages: strategyData.keyMessages ?? [],
   });
 
   await projectRepository.updateStatus(projectId, 'strategy_set');

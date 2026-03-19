@@ -1,4 +1,26 @@
-import { pgSchema, text, integer, boolean } from 'drizzle-orm/pg-core';
+import { pgSchema, text, integer, boolean, uuid, timestamp, jsonb, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
+import type {
+  StructuredRequirement,
+  EvaluationCriterion,
+  EvaluationItem,
+  TraceabilityMapping,
+  Qualification,
+  StrategyPoint,
+  RecommendedChapter,
+  DirectionCandidate,
+  Differentiator,
+  OutlineSection,
+  EvalItemReviewResult,
+  ReqReviewResult,
+  ReviewImprovement,
+  LaborCostItem,
+  EquipmentCostItem,
+  ExpenseCostItem,
+  IndirectCosts,
+  PriceSummary,
+  PriceCompetitiveness,
+} from '@/lib/ai/types';
 
 // aiprowriter 전용 스키마 (다른 프로젝트와 분리)
 export const aiprowriterSchema = pgSchema('aiprowriter');
@@ -22,7 +44,7 @@ export type SectionStatus = 'pending' | 'generating' | 'generated' | 'edited';
 export type AppRole = 'super_admin' | 'admin' | 'proposal_pm' | 'tech_writer' | 'viewer';
 
 export const profiles = aiprowriterSchema.table('profiles', {
-  id: text('id').primaryKey(),
+  id: uuid('id').defaultRandom().primaryKey(),
   loginId: text('login_id').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
   name: text('name').notNull().default(''),
@@ -30,8 +52,8 @@ export const profiles = aiprowriterSchema.table('profiles', {
   department: text('department').notNull().default(''),
   role: text('role').$type<AppRole>().notNull().default('viewer'),
   avatarUrl: text('avatar_url'),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 // ─── Project Members (RBAC) ─────────────────────────────────
@@ -39,147 +61,169 @@ export const profiles = aiprowriterSchema.table('profiles', {
 export type ProjectRole = 'owner' | 'editor' | 'viewer';
 
 export const projectMembers = aiprowriterSchema.table('project_members', {
-  id: text('id').primaryKey(),
-  projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  userId: text('user_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  id: uuid('id').defaultRandom().primaryKey(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
   role: text('role').$type<ProjectRole>().notNull().default('viewer'),
-  createdAt: text('created_at').notNull(),
-});
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('project_members_project_id_idx').on(table.projectId),
+  index('project_members_user_id_idx').on(table.userId),
+  uniqueIndex('project_members_project_user_idx').on(table.projectId, table.userId),
+]);
 
 // ─── Projects ───────────────────────────────────────────────
 
 export const projects = aiprowriterSchema.table('projects', {
-  id: text('id').primaryKey(),
+  id: uuid('id').defaultRandom().primaryKey(),
   title: text('title').notNull(),
   status: text('status').$type<ProjectStatus>().notNull().default('uploaded'),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
-});
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('projects_created_at_idx').on(table.createdAt),
+]);
 
 // ─── RFP Files ──────────────────────────────────────────────
 
 export const rfpFiles = aiprowriterSchema.table('rfp_files', {
-  id: text('id').primaryKey(),
-  projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  id: uuid('id').defaultRandom().primaryKey(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   fileName: text('file_name').notNull(),
   fileType: text('file_type').$type<'pdf' | 'docx'>().notNull(),
   filePath: text('file_path').notNull(),
   fileSize: integer('file_size').notNull(),
   rawText: text('raw_text').notNull().default(''),
-  uploadedAt: text('uploaded_at').notNull(),
-});
+  uploadedAt: timestamp('uploaded_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('rfp_files_project_id_idx').on(table.projectId),
+]);
 
 // ─── RFP Analysis ───────────────────────────────────────────
 
 export const rfpAnalyses = aiprowriterSchema.table('rfp_analyses', {
-  id: text('id').primaryKey(),
-  projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  overview: text('overview').notNull().default('{}'),
-  requirements: text('requirements').notNull().default('[]'),
-  evaluationCriteria: text('evaluation_criteria').notNull().default('[]'),
-  // 수주 최적화 분석 확장 필드
-  evaluationItems: text('evaluation_items').notNull().default('[]'),         // EvaluationItem[] (EVAL-ID 체계)
-  traceabilityMatrix: text('traceability_matrix').notNull().default('[]'),   // TraceabilityMapping[]
-  qualifications: text('qualifications').notNull().default('[]'),            // Qualification[]
-  strategyPoints: text('strategy_points').notNull().default('[]'),           // StrategyPoint[]
-  recommendedChapters: text('recommended_chapters').notNull().default('[]'), // RecommendedChapter[]
-  scope: text('scope').notNull().default('{}'),
-  constraints: text('constraints').notNull().default('{}'),
-  keywords: text('keywords').notNull().default('[]'),
-  analyzedAt: text('analyzed_at').notNull(),
-});
+  id: uuid('id').defaultRandom().primaryKey(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  overview: jsonb('overview').$type<{ projectName: string; client: string; budget: string; duration: string; summary: string; purpose?: string }>().notNull().default({ projectName: '', client: '', budget: '', duration: '', summary: '' }),
+  requirements: jsonb('requirements').$type<StructuredRequirement[]>().notNull().default([]),
+  evaluationCriteria: jsonb('evaluation_criteria').$type<EvaluationCriterion[]>().notNull().default([]),
+  evaluationItems: jsonb('evaluation_items').$type<EvaluationItem[]>().notNull().default([]),
+  traceabilityMatrix: jsonb('traceability_matrix').$type<TraceabilityMapping[]>().notNull().default([]),
+  qualifications: jsonb('qualifications').$type<Qualification[]>().notNull().default([]),
+  strategyPoints: jsonb('strategy_points').$type<StrategyPoint[]>().notNull().default([]),
+  recommendedChapters: jsonb('recommended_chapters').$type<RecommendedChapter[]>().notNull().default([]),
+  scope: jsonb('scope').$type<{ inScope: string[]; outOfScope: string[] }>().notNull().default({ inScope: [], outOfScope: [] }),
+  constraints: jsonb('constraints').$type<{ technical: string[]; business: string[]; timeline: string[] }>().notNull().default({ technical: [], business: [], timeline: [] }),
+  keywords: jsonb('keywords').$type<string[]>().notNull().default([]),
+  analyzedAt: timestamp('analyzed_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('rfp_analyses_project_id_idx').on(table.projectId),
+]);
 
 // ─── Proposal Direction ─────────────────────────────────────
 
 export const proposalDirections = aiprowriterSchema.table('proposal_directions', {
-  id: text('id').primaryKey(),
-  projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  candidates: text('candidates').notNull().default('[]'),
+  id: uuid('id').defaultRandom().primaryKey(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  candidates: jsonb('candidates').$type<DirectionCandidate[]>().notNull().default([]),
   selectedIndex: integer('selected_index').default(-1),
   customNotes: text('custom_notes').default(''),
-  confirmedAt: text('confirmed_at'),
-});
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+}, (table) => [
+  index('proposal_directions_project_id_idx').on(table.projectId),
+]);
 
 // ─── Proposal Strategy ──────────────────────────────────────
 
 export const proposalStrategies = aiprowriterSchema.table('proposal_strategies', {
-  id: text('id').primaryKey(),
-  projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  id: uuid('id').defaultRandom().primaryKey(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   competitiveStrategy: text('competitive_strategy').notNull().default(''),
-  differentiators: text('differentiators').notNull().default('[]'),
-  keyMessages: text('key_messages').notNull().default('[]'),
-  writingStyle: text('writing_style').notNull().default('formal'), // formal|descriptive|concise|persuasive
+  differentiators: jsonb('differentiators').$type<Differentiator[]>().notNull().default([]),
+  keyMessages: jsonb('key_messages').$type<string[]>().notNull().default([]),
+  writingStyle: text('writing_style').notNull().default('formal'),
   customNotes: text('custom_notes').default(''),
-  confirmedAt: text('confirmed_at'),
-});
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+}, (table) => [
+  index('proposal_strategies_project_id_idx').on(table.projectId),
+]);
 
 // ─── Proposal Outline ───────────────────────────────────────
 
 export const proposalOutlines = aiprowriterSchema.table('proposal_outlines', {
-  id: text('id').primaryKey(),
-  projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  sections: text('sections').notNull().default('[]'),
-});
+  id: uuid('id').defaultRandom().primaryKey(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  sections: jsonb('sections').$type<OutlineSection[]>().notNull().default([]),
+}, (table) => [
+  index('proposal_outlines_project_id_idx').on(table.projectId),
+]);
 
 // ─── Proposal Sections ──────────────────────────────────────
 
 export const proposalSections = aiprowriterSchema.table('proposal_sections', {
-  id: text('id').primaryKey(),
-  projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  outlineId: text('outline_id').notNull().references(() => proposalOutlines.id),
+  id: uuid('id').defaultRandom().primaryKey(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  outlineId: uuid('outline_id').notNull().references(() => proposalOutlines.id),
   sectionPath: text('section_path').notNull(),
   title: text('title').notNull(),
   content: text('content').notNull().default(''),
-  diagrams: text('diagrams').notNull().default('[]'),
+  diagrams: jsonb('diagrams').$type<unknown[]>().notNull().default([]),
   status: text('status').$type<SectionStatus>().notNull().default('pending'),
-  linkedReqIds: text('linked_req_ids').notNull().default('[]'), // REQ-ID 배열 (추적성)
-  generatedAt: text('generated_at'),
-  editedAt: text('edited_at'),
-});
+  linkedReqIds: jsonb('linked_req_ids').$type<string[]>().notNull().default([]),
+  generatedAt: timestamp('generated_at', { withTimezone: true }),
+  editedAt: timestamp('edited_at', { withTimezone: true }),
+}, (table) => [
+  index('proposal_sections_project_id_idx').on(table.projectId),
+  index('proposal_sections_outline_id_idx').on(table.outlineId),
+]);
 
 // ─── Review Reports ─────────────────────────────────────────
 
 export type ReviewGrade = 'A' | 'B' | 'C' | 'D' | 'F';
 
 export const reviewReports = aiprowriterSchema.table('review_reports', {
-  id: text('id').primaryKey(),
-  projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  id: uuid('id').defaultRandom().primaryKey(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   overallScore: integer('overall_score').notNull().default(0),
   totalPossible: integer('total_possible').notNull().default(100),
   grade: text('grade').$type<ReviewGrade>().notNull().default('F'),
-  evalCoverage: integer('eval_coverage').notNull().default(0),         // 평가항목 충족률 %
-  reqCoverage: integer('req_coverage').notNull().default(0),           // 요구사항 충족률 %
-  formatCompliance: integer('format_compliance').notNull().default(0), // 형식 준수율 %
-  evalResults: text('eval_results').notNull().default('[]'),           // EvalItemReviewResult[]
-  reqResults: text('req_results').notNull().default('[]'),             // ReqReviewResult[]
-  improvements: text('improvements').notNull().default('[]'),          // ReviewImprovement[]
+  evalCoverage: integer('eval_coverage').notNull().default(0),
+  reqCoverage: integer('req_coverage').notNull().default(0),
+  formatCompliance: integer('format_compliance').notNull().default(0),
+  evalResults: jsonb('eval_results').$type<EvalItemReviewResult[]>().notNull().default([]),
+  reqResults: jsonb('req_results').$type<ReqReviewResult[]>().notNull().default([]),
+  improvements: jsonb('improvements').$type<ReviewImprovement[]>().notNull().default([]),
   summary: text('summary').notNull().default(''),
-  generatedAt: text('generated_at').notNull(),
-});
+  generatedAt: timestamp('generated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('review_reports_project_id_idx').on(table.projectId),
+]);
 
 // ─── Price Proposals ────────────────────────────────────────
 
 export const priceProposals = aiprowriterSchema.table('price_proposals', {
-  id: text('id').primaryKey(),
-  projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  laborCosts: text('labor_costs').notNull().default('[]'),       // LaborCostItem[]
-  equipmentCosts: text('equipment_costs').notNull().default('[]'), // EquipmentCostItem[]
-  expenseCosts: text('expense_costs').notNull().default('[]'),    // ExpenseCostItem[]
-  indirectCosts: text('indirect_costs').notNull().default('{}'),  // IndirectCosts
-  summary: text('summary').notNull().default('{}'),               // PriceSummary
-  competitiveness: text('competitiveness').notNull().default('{}'), // PriceCompetitiveness
-  generatedAt: text('generated_at').notNull(),
-});
+  id: uuid('id').defaultRandom().primaryKey(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  laborCosts: jsonb('labor_costs').$type<LaborCostItem[]>().notNull().default([]),
+  equipmentCosts: jsonb('equipment_costs').$type<EquipmentCostItem[]>().notNull().default([]),
+  expenseCosts: jsonb('expense_costs').$type<ExpenseCostItem[]>().notNull().default([]),
+  indirectCosts: jsonb('indirect_costs').$type<IndirectCosts>().notNull().default({ generalAdmin: 0, generalAdminRate: 0, profit: 0, profitRate: 0 }),
+  summary: jsonb('summary').$type<PriceSummary>().notNull().default({ directLabor: 0, directExpense: 0, miscExpense: 0, directSubtotal: 0, generalAdmin: 0, profit: 0, indirectSubtotal: 0, supplyPrice: 0, vat: 0, totalPrice: 0 }),
+  competitiveness: jsonb('competitiveness').$type<PriceCompetitiveness>().notNull().default({ budgetRatio: 0, recommendedRange: '', strategy: '' }),
+  generatedAt: timestamp('generated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('price_proposals_project_id_idx').on(table.projectId),
+]);
 
 // ─── Templates ──────────────────────────────────────────────
 
 export const templates = aiprowriterSchema.table('templates', {
-  id: text('id').primaryKey(),
+  id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
   type: text('type').$type<'word' | 'ppt'>().notNull(),
   filePath: text('file_path').notNull(),
   isDefault: boolean('is_default').notNull().default(false),
-  uploadedAt: text('uploaded_at').notNull(),
+  uploadedAt: timestamp('uploaded_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 // ─── AI Settings ────────────────────────────────────────────
@@ -187,22 +231,138 @@ export const templates = aiprowriterSchema.table('templates', {
 export type AiProviderType = 'claude' | 'gpt';
 
 export const aiSettings = aiprowriterSchema.table('ai_settings', {
-  id: text('id').primaryKey(),
+  id: text('id').primaryKey(), // 고정 키 'default' 사용
   provider: text('provider').$type<AiProviderType>().notNull().default('claude'),
   claudeModel: text('claude_model').notNull().default('claude-sonnet-4-6'),
   gptModel: text('gpt_model').notNull().default('gpt-4o'),
-  updatedAt: text('updated_at').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ─── Tenant Settings (회사별 커스터마이징) ──────────────────
+
+export const tenantSettings = aiprowriterSchema.table('tenant_settings', {
+  id: text('id').primaryKey(), // 고정 키 'default' 사용
+  appName: text('app_name').notNull().default('AIPROWRITER'),
+  logoUrl: text('logo_url').notNull().default(''),
+  primaryColor: text('primary_color').notNull().default(''),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 // ─── Output Files ───────────────────────────────────────────
 
 export const outputFiles = aiprowriterSchema.table('output_files', {
-  id: text('id').primaryKey(),
-  projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  id: uuid('id').defaultRandom().primaryKey(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   type: text('type').$type<'word' | 'ppt'>().notNull(),
-  templateId: text('template_id'),
+  templateId: uuid('template_id'),
   filePath: text('file_path').notNull(),
   fileName: text('file_name').notNull(),
-  generatedAt: text('generated_at').notNull(),
+  generatedAt: timestamp('generated_at', { withTimezone: true }).notNull().defaultNow(),
   version: integer('version').notNull().default(1),
-});
+}, (table) => [
+  index('output_files_project_id_idx').on(table.projectId),
+]);
+
+// ─── Audit Logs (감사 로그) ──────────────────────────────────
+
+export type AuditAction =
+  | 'login' | 'logout'
+  | 'project.create' | 'project.update' | 'project.delete'
+  | 'rfp.upload' | 'rfp.analyze'
+  | 'direction.generate' | 'direction.select'
+  | 'strategy.generate'
+  | 'outline.generate' | 'outline.update'
+  | 'section.generate' | 'section.update'
+  | 'review.generate'
+  | 'price.generate'
+  | 'output.download'
+  | 'template.upload' | 'template.delete'
+  | 'user.create' | 'user.update' | 'user.delete'
+  | 'settings.update';
+
+export type AuditResourceType =
+  | 'auth' | 'project' | 'rfp' | 'direction' | 'strategy'
+  | 'outline' | 'section' | 'review' | 'price' | 'output'
+  | 'template' | 'user' | 'settings';
+
+export const auditLogs = aiprowriterSchema.table('audit_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => profiles.id, { onDelete: 'set null' }),
+  action: text('action').$type<AuditAction>().notNull(),
+  resourceType: text('resource_type').$type<AuditResourceType>().notNull(),
+  resourceId: text('resource_id'),
+  details: jsonb('details').$type<Record<string, unknown>>(),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('audit_logs_user_id_idx').on(table.userId),
+  index('audit_logs_action_idx').on(table.action),
+  index('audit_logs_created_at_idx').on(table.createdAt),
+]);
+
+// ─── Relations ──────────────────────────────────────────────
+
+export const profilesRelations = relations(profiles, ({ many }) => ({
+  projectMembers: many(projectMembers),
+}));
+
+export const projectsRelations = relations(projects, ({ many }) => ({
+  members: many(projectMembers),
+  rfpFiles: many(rfpFiles),
+  rfpAnalyses: many(rfpAnalyses),
+  directions: many(proposalDirections),
+  strategies: many(proposalStrategies),
+  outlines: many(proposalOutlines),
+  sections: many(proposalSections),
+  reviewReports: many(reviewReports),
+  priceProposals: many(priceProposals),
+  outputFiles: many(outputFiles),
+}));
+
+export const projectMembersRelations = relations(projectMembers, ({ one }) => ({
+  project: one(projects, { fields: [projectMembers.projectId], references: [projects.id] }),
+  user: one(profiles, { fields: [projectMembers.userId], references: [profiles.id] }),
+}));
+
+export const rfpFilesRelations = relations(rfpFiles, ({ one }) => ({
+  project: one(projects, { fields: [rfpFiles.projectId], references: [projects.id] }),
+}));
+
+export const rfpAnalysesRelations = relations(rfpAnalyses, ({ one }) => ({
+  project: one(projects, { fields: [rfpAnalyses.projectId], references: [projects.id] }),
+}));
+
+export const proposalDirectionsRelations = relations(proposalDirections, ({ one }) => ({
+  project: one(projects, { fields: [proposalDirections.projectId], references: [projects.id] }),
+}));
+
+export const proposalStrategiesRelations = relations(proposalStrategies, ({ one }) => ({
+  project: one(projects, { fields: [proposalStrategies.projectId], references: [projects.id] }),
+}));
+
+export const proposalOutlinesRelations = relations(proposalOutlines, ({ one, many }) => ({
+  project: one(projects, { fields: [proposalOutlines.projectId], references: [projects.id] }),
+  sections: many(proposalSections),
+}));
+
+export const proposalSectionsRelations = relations(proposalSections, ({ one }) => ({
+  project: one(projects, { fields: [proposalSections.projectId], references: [projects.id] }),
+  outline: one(proposalOutlines, { fields: [proposalSections.outlineId], references: [proposalOutlines.id] }),
+}));
+
+export const reviewReportsRelations = relations(reviewReports, ({ one }) => ({
+  project: one(projects, { fields: [reviewReports.projectId], references: [projects.id] }),
+}));
+
+export const priceProposalsRelations = relations(priceProposals, ({ one }) => ({
+  project: one(projects, { fields: [priceProposals.projectId], references: [projects.id] }),
+}));
+
+export const outputFilesRelations = relations(outputFiles, ({ one }) => ({
+  project: one(projects, { fields: [outputFiles.projectId], references: [projects.id] }),
+}));
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  user: one(profiles, { fields: [auditLogs.userId], references: [profiles.id] }),
+}));

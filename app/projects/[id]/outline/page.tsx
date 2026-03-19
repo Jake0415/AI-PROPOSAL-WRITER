@@ -8,8 +8,11 @@ import { ProgressTracker } from '@/components/project/progress-tracker';
 import { useSSE } from '@/lib/hooks/use-sse';
 import type { OutlineSection } from '@/lib/ai/types';
 import { CoachingButton } from '@/components/guide/coaching-button';
+import { OutlineEvalMapping } from '@/components/project/outline-eval-mapping';
+import { OutlineTemplateSelector } from '@/components/project/outline-template-selector';
 import { ArrowRight, GripVertical, List, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { EvaluationCriterion } from '@/lib/ai/types';
 
 export default function OutlinePage() {
   const params = useParams();
@@ -17,9 +20,22 @@ export default function OutlinePage() {
   const projectId = params.id as string;
 
   const [sections, setSections] = useState<OutlineSection[]>([]);
+  const [criteria, setCriteria] = useState<EvaluationCriterion[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
   const sse = useSSE<OutlineSection[]>();
   const initialized = useRef(false);
+
+  // 평가항목 로드
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/rfp/analysis`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.data?.evaluationCriteria) {
+          setCriteria(json.data.evaluationCriteria);
+        }
+      })
+      .catch(() => {});
+  }, [projectId]);
 
   // 기존 데이터 로드 후 없으면 생성
   useEffect(() => {
@@ -128,6 +144,16 @@ export default function OutlinePage() {
         <div className="flex items-center gap-2">
           {sections.length > 0 && (
             <>
+              <OutlineTemplateSelector
+                onApply={(tplSections) => {
+                  setSections(tplSections);
+                  fetch(`/api/projects/${projectId}/outline`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sections: tplSections }),
+                  }).catch(() => {});
+                }}
+              />
               <Button
                 variant="outline"
                 size="sm"
@@ -156,6 +182,21 @@ export default function OutlinePage() {
             <CardDescription>{sse.error}</CardDescription>
           </CardHeader>
         </Card>
+      )}
+
+      {sections.length > 0 && criteria.length > 0 && (
+        <OutlineEvalMapping
+          criteria={criteria}
+          sections={sections}
+          onSectionsChange={(updated) => {
+            setSections(updated);
+            fetch(`/api/projects/${projectId}/outline`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sections: updated }),
+            }).catch(() => {});
+          }}
+        />
       )}
 
       {sections.length > 0 && (

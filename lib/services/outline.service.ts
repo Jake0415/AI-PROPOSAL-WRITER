@@ -27,15 +27,15 @@ export async function generateOutline(
   onProgress?.({ step: '목차 생성 중', progress: 30 });
 
   const analysisJson = JSON.stringify({
-    overview: JSON.parse(analysis.overview),
-    requirements: JSON.parse(analysis.requirements),
-    evaluationCriteria: JSON.parse(analysis.evaluationCriteria),
+    overview: analysis.overview,
+    requirements: analysis.requirements,
+    evaluationCriteria: analysis.evaluationCriteria,
   });
 
   const strategyJson = JSON.stringify({
     competitiveStrategy: strategy.competitiveStrategy,
-    differentiators: JSON.parse(strategy.differentiators),
-    keyMessages: JSON.parse(strategy.keyMessages),
+    differentiators: strategy.differentiators,
+    keyMessages: strategy.keyMessages,
   });
 
   const result = await generateText({
@@ -55,7 +55,7 @@ export async function generateOutline(
     sections = [];
   }
 
-  await proposalRepository.createOutline(projectId, JSON.stringify(sections));
+  await proposalRepository.createOutline(projectId, sections);
   await projectRepository.updateStatus(projectId, 'outline_ready');
 
   onProgress?.({ step: '완료', progress: 100 });

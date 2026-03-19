@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { eq } from 'drizzle-orm';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
 import * as schema from '../lib/db/schema';
 
@@ -9,8 +9,8 @@ const SALT_ROUNDS = 12;
 
 const SEED_USERS = [
   {
-    loginId: 'superadmin',
-    password: 'admin1234',
+    loginId: 'yhk71261@gmail.com',
+    password: '@Dnflwlq01',
     name: '최고관리자',
     phone: '010-0000-0000',
     department: '시스템관리',
@@ -58,19 +58,16 @@ async function seed() {
       continue;
     }
 
-    const now = new Date().toISOString();
     const passwordHash = await bcrypt.hash(user.password, SALT_ROUNDS);
 
     await db.insert(schema.profiles).values({
-      id: uuidv4(),
+      id: randomUUID(),
       loginId: user.loginId,
       passwordHash,
       name: user.name,
       phone: user.phone,
       department: user.department,
       role: user.role,
-      createdAt: now,
-      updatedAt: now,
     });
 
     console.log(`✅ ${user.loginId} (${user.role}) - 생성 완료`);

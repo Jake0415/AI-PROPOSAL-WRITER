@@ -38,6 +38,13 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# standalone 빌드에서 누락되는 서버 런타임 패키지 보완
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/bcryptjs ./node_modules/bcryptjs
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/jose ./node_modules/jose
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/postgres ./node_modules/postgres
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/uuid ./node_modules/uuid
+
 # 데이터 디렉토리 생성
 RUN mkdir -p data/uploads data/outputs data/templates && \
     chown -R nextjs:nodejs data

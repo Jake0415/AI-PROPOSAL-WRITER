@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db/client';
 import { templates } from '@/lib/db/schema';
-import { v4 as uuidv4 } from 'uuid';
 
 // 템플릿 목록 조회
 export async function GET() {
@@ -35,16 +34,13 @@ export async function POST(request: NextRequest) {
     }
 
     const db = getDb();
-    const template = {
-      id: uuidv4(),
+    const [template] = await db.insert(templates).values({
       name,
       type,
       filePath,
       isDefault: false,
-      uploadedAt: new Date().toISOString(),
-    };
+    }).returning();
 
-    await db.insert(templates).values(template);
     return NextResponse.json({ success: true, data: template }, { status: 201 });
   } catch {
     return NextResponse.json(

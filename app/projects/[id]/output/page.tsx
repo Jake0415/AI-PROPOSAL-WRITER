@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,12 @@ import { Download, FileText, Loader2, Presentation, CheckCircle } from 'lucide-r
 
 type DocType = 'word' | 'ppt';
 
+interface TemplateOption {
+  id: string;
+  name: string;
+  type: 'word' | 'ppt';
+}
+
 export default function OutputPage() {
   const params = useParams();
   const projectId = params.id as string;
@@ -16,16 +22,34 @@ export default function OutputPage() {
   const [generating, setGenerating] = useState<DocType | null>(null);
   const [generated, setGenerated] = useState<Set<DocType>>(new Set());
   const [error, setError] = useState('');
+  const [wordTemplates, setWordTemplates] = useState<TemplateOption[]>([]);
+  const [pptTemplates, setPptTemplates] = useState<TemplateOption[]>([]);
+  const [selectedWordTpl, setSelectedWordTpl] = useState('');
+  const [selectedPptTpl, setSelectedPptTpl] = useState('');
+
+  useEffect(() => {
+    fetch('/api/templates')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setWordTemplates(data.data.filter((t: TemplateOption) => t.type === 'word'));
+          setPptTemplates(data.data.filter((t: TemplateOption) => t.type === 'ppt'));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   async function handleDownload(type: DocType) {
     setGenerating(type);
     setError('');
 
+    const templateId = type === 'word' ? selectedWordTpl : selectedPptTpl;
+
     try {
       const res = await fetch(`/api/projects/${projectId}/output/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type }),
+        body: JSON.stringify({ type, templateId: templateId || undefined }),
       });
 
       if (!res.ok) {
@@ -35,12 +59,10 @@ export default function OutputPage() {
         return;
       }
 
-      // Blob으로 변환 후 다운로드
       const blob = await res.blob();
       const contentDisposition = res.headers.get('Content-Disposition');
       let fileName = type === 'word' ? '제안서.docx' : '제안서.pptx';
 
-      // Content-Disposition에서 파일명 추출
       if (contentDisposition) {
         const match = contentDisposition.match(/filename\*=UTF-8''(.+)/);
         if (match) {
@@ -104,6 +126,18 @@ export default function OutputPage() {
                 표지, 목차, Executive Summary, 전체 섹션 포함
               </span>
             </CardDescription>
+            {wordTemplates.length > 0 && (
+              <select
+                value={selectedWordTpl}
+                onChange={(e) => setSelectedWordTpl(e.target.value)}
+                className="mx-auto mb-3 h-8 rounded-md border bg-background px-2 text-xs max-w-[200px]"
+              >
+                <option value="">기본 템플릿</option>
+                {wordTemplates.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            )}
             <Button
               variant="outline"
               onClick={() => handleDownload('word')}
@@ -139,6 +173,18 @@ export default function OutputPage() {
                 표지, 목차, 요약, 섹션별 슬라이드
               </span>
             </CardDescription>
+            {pptTemplates.length > 0 && (
+              <select
+                value={selectedPptTpl}
+                onChange={(e) => setSelectedPptTpl(e.target.value)}
+                className="mx-auto mb-3 h-8 rounded-md border bg-background px-2 text-xs max-w-[200px]"
+              >
+                <option value="">기본 템플릿</option>
+                {pptTemplates.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            )}
             <Button
               variant="outline"
               onClick={() => handleDownload('ppt')}

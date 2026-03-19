@@ -1,5 +1,4 @@
 import { eq } from 'drizzle-orm';
-import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@/lib/db/client';
 import {
   proposalDirections,
@@ -9,21 +8,19 @@ import {
   outputFiles,
 } from '@/lib/db/schema';
 import type { SectionStatus } from '@/lib/db/schema';
+import type { DirectionCandidate, Differentiator, OutlineSection } from '@/lib/ai/types';
 
 export const proposalRepository = {
   // ─── Direction ──────────────────────────────────────────
 
-  async createDirection(projectId: string, candidates: string) {
+  async createDirection(projectId: string, candidates: DirectionCandidate[]) {
     const db = getDb();
-    const direction = {
-      id: uuidv4(),
+    const [direction] = await db.insert(proposalDirections).values({
       projectId,
       candidates,
       selectedIndex: -1,
       customNotes: '',
-      confirmedAt: null,
-    };
-    await db.insert(proposalDirections).values(direction);
+    }).returning();
     return direction;
   },
 
@@ -40,7 +37,7 @@ export const proposalRepository = {
     const db = getDb();
     await db
       .update(proposalDirections)
-      .set({ selectedIndex, confirmedAt: new Date().toISOString() })
+      .set({ selectedIndex, confirmedAt: new Date() })
       .where(eq(proposalDirections.id, id));
   },
 
@@ -48,22 +45,19 @@ export const proposalRepository = {
 
   async createStrategy(projectId: string, data: {
     competitiveStrategy: string;
-    differentiators: string;
-    keyMessages: string;
+    differentiators: Differentiator[];
+    keyMessages: string[];
     writingStyle?: string;
   }) {
     const db = getDb();
-    const strategy = {
-      id: uuidv4(),
+    const [strategy] = await db.insert(proposalStrategies).values({
       projectId,
       competitiveStrategy: data.competitiveStrategy,
       differentiators: data.differentiators,
       keyMessages: data.keyMessages,
       writingStyle: data.writingStyle ?? 'formal',
       customNotes: '',
-      confirmedAt: null,
-    };
-    await db.insert(proposalStrategies).values(strategy);
+    }).returning();
     return strategy;
   },
 
@@ -78,10 +72,12 @@ export const proposalRepository = {
 
   // ─── Outline ────────────────────────────────────────────
 
-  async createOutline(projectId: string, sections: string) {
+  async createOutline(projectId: string, sections: OutlineSection[]) {
     const db = getDb();
-    const outline = { id: uuidv4(), projectId, sections };
-    await db.insert(proposalOutlines).values(outline);
+    const [outline] = await db.insert(proposalOutlines).values({
+      projectId,
+      sections,
+    }).returning();
     return outline;
   },
 
@@ -94,7 +90,7 @@ export const proposalRepository = {
     return results[0];
   },
 
-  async updateOutline(id: string, sections: string) {
+  async updateOutline(id: string, sections: OutlineSection[]) {
     const db = getDb();
     await db
       .update(proposalOutlines)
@@ -110,17 +106,14 @@ export const proposalRepository = {
     sectionPath: string;
     title: string;
     content: string;
-    diagrams: string;
+    diagrams: unknown[];
     status: SectionStatus;
   }) {
     const db = getDb();
-    const section = {
-      id: uuidv4(),
+    const [section] = await db.insert(proposalSections).values({
       ...data,
-      generatedAt: new Date().toISOString(),
-      editedAt: null,
-    };
-    await db.insert(proposalSections).values(section);
+      generatedAt: new Date(),
+    }).returning();
     return section;
   },
 
@@ -134,9 +127,9 @@ export const proposalRepository = {
 
   async updateSection(id: string, data: Partial<{
     content: string;
-    diagrams: string;
+    diagrams: unknown[];
     status: SectionStatus;
-    editedAt: string;
+    editedAt: Date;
   }>) {
     const db = getDb();
     await db
@@ -155,13 +148,10 @@ export const proposalRepository = {
     fileName: string;
   }) {
     const db = getDb();
-    const output = {
-      id: uuidv4(),
+    const [output] = await db.insert(outputFiles).values({
       ...data,
-      generatedAt: new Date().toISOString(),
       version: 1,
-    };
-    await db.insert(outputFiles).values(output);
+    }).returning();
     return output;
   },
 

@@ -1,25 +1,27 @@
 import { eq } from 'drizzle-orm';
-import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@/lib/db/client';
 import { priceProposals } from '@/lib/db/schema';
+import type {
+  LaborCostItem,
+  EquipmentCostItem,
+  ExpenseCostItem,
+  IndirectCosts,
+  PriceSummary,
+  PriceCompetitiveness,
+} from '@/lib/ai/types';
 
 export const priceRepository = {
   async create(data: {
     projectId: string;
-    laborCosts: string;
-    equipmentCosts: string;
-    expenseCosts: string;
-    indirectCosts: string;
-    summary: string;
-    competitiveness: string;
+    laborCosts: LaborCostItem[];
+    equipmentCosts: EquipmentCostItem[];
+    expenseCosts: ExpenseCostItem[];
+    indirectCosts: IndirectCosts;
+    summary: PriceSummary;
+    competitiveness: PriceCompetitiveness;
   }) {
     const db = getDb();
-    const proposal = {
-      id: uuidv4(),
-      ...data,
-      generatedAt: new Date().toISOString(),
-    };
-    await db.insert(priceProposals).values(proposal);
+    const [proposal] = await db.insert(priceProposals).values(data).returning();
     return proposal;
   },
 

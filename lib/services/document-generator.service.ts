@@ -16,7 +16,7 @@ interface SectionData {
   sectionPath: string;
   title: string;
   content: string;
-  diagrams: string; // JSON string
+  diagrams: unknown[];
 }
 
 interface ProposalData {

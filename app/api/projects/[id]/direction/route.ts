@@ -13,11 +13,10 @@ export async function GET(
       return NextResponse.json({ success: true, data: null });
     }
 
-    const candidates = JSON.parse(direction.candidates);
     return NextResponse.json({
       success: true,
       data: {
-        candidates,
+        candidates: direction.candidates,
         selectedIndex: direction.selectedIndex,
       },
     });

@@ -49,9 +49,9 @@ export async function generatePrice(
   onProgress?.({ step: '가격 산출 중 (AI 분석)', progress: 30 });
 
   const analysisJson = JSON.stringify({
-    overview: JSON.parse(analysis.overview),
-    requirements: JSON.parse(analysis.requirements),
-    evaluationItems: JSON.parse(analysis.evaluationItems),
+    overview: analysis.overview,
+    requirements: analysis.requirements,
+    evaluationItems: analysis.evaluationItems,
   });
 
   const sectionsJson = JSON.stringify(
@@ -73,12 +73,12 @@ export async function generatePrice(
 
   await priceRepository.create({
     projectId,
-    laborCosts: JSON.stringify(priceData.laborCosts ?? []),
-    equipmentCosts: JSON.stringify(priceData.equipmentCosts ?? []),
-    expenseCosts: JSON.stringify(priceData.expenseCosts ?? []),
-    indirectCosts: JSON.stringify(priceData.indirectCosts ?? {}),
-    summary: JSON.stringify(priceData.summary ?? {}),
-    competitiveness: JSON.stringify(priceData.competitiveness ?? {}),
+    laborCosts: priceData.laborCosts ?? [],
+    equipmentCosts: priceData.equipmentCosts ?? [],
+    expenseCosts: priceData.expenseCosts ?? [],
+    indirectCosts: priceData.indirectCosts ?? { generalAdmin: 0, generalAdminRate: 0, profit: 0, profitRate: 0 },
+    summary: priceData.summary ?? {} as PriceProposalResult['summary'],
+    competitiveness: priceData.competitiveness ?? { budgetRatio: 0, recommendedRange: '', strategy: '' },
   });
 
   onProgress?.({ step: '완료', progress: 100 });

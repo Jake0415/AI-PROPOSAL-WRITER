@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm';
-import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@/lib/db/client';
 import { reviewReports } from '@/lib/db/schema';
 import type { ReviewGrade } from '@/lib/db/schema';
+import type { EvalItemReviewResult, ReqReviewResult, ReviewImprovement } from '@/lib/ai/types';
 
 export const reviewRepository = {
   async create(data: {
@@ -13,18 +13,13 @@ export const reviewRepository = {
     evalCoverage: number;
     reqCoverage: number;
     formatCompliance: number;
-    evalResults: string;
-    reqResults: string;
-    improvements: string;
+    evalResults: EvalItemReviewResult[];
+    reqResults: ReqReviewResult[];
+    improvements: ReviewImprovement[];
     summary: string;
   }) {
     const db = getDb();
-    const report = {
-      id: uuidv4(),
-      ...data,
-      generatedAt: new Date().toISOString(),
-    };
-    await db.insert(reviewReports).values(report);
+    const [report] = await db.insert(reviewReports).values(data).returning();
     return report;
   },
 

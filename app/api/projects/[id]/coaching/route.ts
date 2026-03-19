@@ -25,12 +25,12 @@ async function getStepData(
       const analysis = await rfpRepository.getAnalysisByProjectId(projectId);
       if (!analysis) return null;
       return JSON.stringify({
-        overview: JSON.parse(analysis.overview),
-        requirements: JSON.parse(analysis.requirements),
-        evaluationCriteria: JSON.parse(analysis.evaluationCriteria),
-        scope: JSON.parse(analysis.scope),
-        constraints: JSON.parse(analysis.constraints),
-        keywords: JSON.parse(analysis.keywords),
+        overview: analysis.overview,
+        requirements: analysis.requirements,
+        evaluationCriteria: analysis.evaluationCriteria,
+        scope: analysis.scope,
+        constraints: analysis.constraints,
+        keywords: analysis.keywords,
       });
     }
     case 'direction': {
@@ -38,11 +38,9 @@ async function getStepData(
       if (!direction) return null;
       const analysis = await rfpRepository.getAnalysisByProjectId(projectId);
       return JSON.stringify({
-        candidates: JSON.parse(direction.candidates),
+        candidates: direction.candidates,
         selectedIndex: direction.selectedIndex,
-        analysisOverview: analysis
-          ? JSON.parse(analysis.overview)
-          : null,
+        analysisOverview: analysis ? analysis.overview : null,
       });
     }
     case 'strategy': {
@@ -50,8 +48,8 @@ async function getStepData(
       if (!strategy) return null;
       return JSON.stringify({
         competitiveStrategy: strategy.competitiveStrategy,
-        differentiators: JSON.parse(strategy.differentiators),
-        keyMessages: JSON.parse(strategy.keyMessages),
+        differentiators: strategy.differentiators,
+        keyMessages: strategy.keyMessages,
       });
     }
     case 'outline': {
@@ -59,10 +57,8 @@ async function getStepData(
       if (!outline) return null;
       const analysis = await rfpRepository.getAnalysisByProjectId(projectId);
       return JSON.stringify({
-        sections: JSON.parse(outline.sections),
-        evaluationCriteria: analysis
-          ? JSON.parse(analysis.evaluationCriteria)
-          : [],
+        sections: outline.sections,
+        evaluationCriteria: analysis ? analysis.evaluationCriteria : [],
       });
     }
     default:

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { ProgressTracker } from '@/components/project/progress-tracker';
+import { AnalysisProgressStepper } from '@/components/project/analysis-progress-stepper';
 import { CoachingButton } from '@/components/guide/coaching-button';
 import { useSSE } from '@/lib/hooks/use-sse';
 import type { RfpAnalysisResult } from '@/lib/ai/types';
@@ -100,7 +100,7 @@ export default function AnalysisPage() {
         </div>
       </div>
 
-      <ProgressTracker progress={sse.progress} step={sse.step} isLoading={sse.isLoading} />
+      <AnalysisProgressStepper steps={sse.steps} progress={sse.progress} isLoading={sse.isLoading} />
 
       {sse.error && (
         <Card className="border-destructive">

@@ -34,7 +34,7 @@ export const profileRepository = {
   },
 
   async create(data: {
-    id: string;
+    id?: string;
     loginId: string;
     passwordHash: string;
     name: string;
@@ -43,19 +43,16 @@ export const profileRepository = {
     role?: AppRole;
   }) {
     const db = getDb();
-    const now = new Date().toISOString();
-    await db.insert(profiles).values({
-      id: data.id,
+    const [created] = await db.insert(profiles).values({
+      ...(data.id ? { id: data.id } : {}),
       loginId: data.loginId,
       passwordHash: data.passwordHash,
       name: data.name,
       phone: data.phone ?? '',
       department: data.department ?? '',
       role: data.role ?? 'viewer',
-      createdAt: now,
-      updatedAt: now,
-    });
-    return this.findByUserId(data.id);
+    }).returning();
+    return created;
   },
 
   async update(userId: string, data: {
@@ -69,7 +66,7 @@ export const profileRepository = {
     const db = getDb();
     await db
       .update(profiles)
-      .set({ ...data, updatedAt: new Date().toISOString() })
+      .set({ ...data, updatedAt: new Date() })
       .where(eq(profiles.id, userId));
     return this.findByUserId(userId);
   },
@@ -78,7 +75,7 @@ export const profileRepository = {
     const db = getDb();
     await db
       .update(profiles)
-      .set({ role, updatedAt: new Date().toISOString() })
+      .set({ role, updatedAt: new Date() })
       .where(eq(profiles.id, userId));
   },
 

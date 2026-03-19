@@ -1,5 +1,4 @@
 import { eq, and } from 'drizzle-orm';
-import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@/lib/db/client';
 import { projectMembers } from '@/lib/db/schema';
 import type { ProjectRole } from '@/lib/db/schema';
@@ -7,14 +6,11 @@ import type { ProjectRole } from '@/lib/db/schema';
 export const projectMemberRepository = {
   async addMember(projectId: string, userId: string, role: ProjectRole = 'viewer') {
     const db = getDb();
-    const member = {
-      id: uuidv4(),
+    const [member] = await db.insert(projectMembers).values({
       projectId,
       userId,
       role,
-      createdAt: new Date().toISOString(),
-    };
-    await db.insert(projectMembers).values(member);
+    }).returning();
     return member;
   },
 

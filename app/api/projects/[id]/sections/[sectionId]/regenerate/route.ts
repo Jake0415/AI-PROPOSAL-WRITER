@@ -39,14 +39,14 @@ export async function POST(
     }
 
     const analysisJson = JSON.stringify({
-      overview: JSON.parse(analysis.overview),
-      requirements: JSON.parse(analysis.requirements),
-      evaluationCriteria: JSON.parse(analysis.evaluationCriteria),
+      overview: analysis.overview,
+      requirements: analysis.requirements,
+      evaluationCriteria: analysis.evaluationCriteria,
     });
     const strategyJson = JSON.stringify({
       competitiveStrategy: strategy.competitiveStrategy,
-      differentiators: JSON.parse(strategy.differentiators),
-      keyMessages: JSON.parse(strategy.keyMessages),
+      differentiators: strategy.differentiators,
+      keyMessages: strategy.keyMessages,
     });
 
     // AI 재생성
@@ -57,7 +57,7 @@ export async function POST(
         section.sectionPath,
         analysisJson,
         strategyJson,
-        outline.sections,
+        JSON.stringify(outline.sections),
       ),
       maxTokens: 4096,
     });
@@ -76,7 +76,7 @@ export async function POST(
     // DB 업데이트
     await proposalRepository.updateSection(sectionId, {
       content: sectionData.content ?? '',
-      diagrams: JSON.stringify(sectionData.diagrams ?? []),
+      diagrams: sectionData.diagrams ?? [],
       status: 'generated',
     });
 

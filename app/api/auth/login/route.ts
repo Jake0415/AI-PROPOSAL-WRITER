@@ -3,6 +3,7 @@ import { profileRepository } from '@/lib/repositories/profile.repository';
 import { comparePassword } from '@/lib/auth/password';
 import { signToken } from '@/lib/auth/jwt';
 import { setSessionCookie } from '@/lib/auth/session';
+import { auditService } from '@/lib/services/audit.service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,10 +44,19 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    await auditService.log({
+      userId: profile.id,
+      action: 'login',
+      resourceType: 'auth',
+      details: { loginId: profile.loginId },
+    });
+
     return setSessionCookie(response, token);
-  } catch {
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error('[LOGIN_ERROR]', detail);
     return NextResponse.json(
-      { success: false, error: { code: 'LOGIN_ERROR', message: '로그인에 실패했습니다' } },
+      { success: false, error: { code: 'LOGIN_ERROR', message: '로그인에 실패했습니다', detail } },
       { status: 500 },
     );
   }
