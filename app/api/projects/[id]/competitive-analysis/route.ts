@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from '@/lib/ai/client';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
-import {
-  COMPETITIVE_ANALYSIS_SYSTEM_PROMPT,
-  buildCompetitiveAnalysisPrompt,
-} from '@/lib/ai/prompts/competitive-analysis';
+import { getPrompt } from '@/lib/services/prompt.service';
 import type { CompetitiveAnalysisResult } from '@/lib/ai/types';
 
 export async function POST(
@@ -29,10 +26,11 @@ export async function POST(
       keywords: analysis.keywords,
     });
 
+    const prompt = await getPrompt('competitive-analysis');
     const result = await generateText({
-      systemPrompt: COMPETITIVE_ANALYSIS_SYSTEM_PROMPT,
-      userPrompt: buildCompetitiveAnalysisPrompt(analysisJson),
-      maxTokens: 4096,
+      systemPrompt: prompt.systemPrompt,
+      userPrompt: prompt.buildUserPrompt(analysisJson),
+      maxTokens: prompt.maxTokens,
     });
 
     let data: CompetitiveAnalysisResult;

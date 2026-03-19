@@ -2,10 +2,7 @@ import { generateText } from '@/lib/ai/client';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
 import { proposalRepository } from '@/lib/repositories/proposal.repository';
 import { projectRepository } from '@/lib/repositories/project.repository';
-import {
-  SECTION_SYSTEM_PROMPT,
-  buildSectionPrompt,
-} from '@/lib/ai/prompts/section-generation';
+import { getPrompt } from '@/lib/services/prompt.service';
 import type { OutlineSection } from '@/lib/ai/types';
 
 // ─── Types ───────────────────────────────────────────────────
@@ -131,9 +128,10 @@ export async function generateSections(
     leafSections,
     concurrency,
     async (leaf) => {
+      const prompt = await getPrompt('section-generation');
       const result = await generateText({
-        systemPrompt: SECTION_SYSTEM_PROMPT,
-        userPrompt: buildSectionPrompt(
+        systemPrompt: prompt.systemPrompt,
+        userPrompt: prompt.buildUserPrompt(
           leaf.title,
           leaf.path,
           analysisJson,
@@ -141,7 +139,7 @@ export async function generateSections(
           outlineJson,
           writingStyle,
         ),
-        maxTokens: 4096,
+        maxTokens: prompt.maxTokens,
       });
 
       const sectionData = parseSectionResult(result);

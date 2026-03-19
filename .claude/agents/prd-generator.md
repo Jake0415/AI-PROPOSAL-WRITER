@@ -253,12 +253,13 @@ model: sonnet
 
 ### 🗄️ 백엔드 & 데이터베이스
 
-- **Supabase** - BaaS (인증, 데이터베이스, 실시간 구독)
-- **PostgreSQL** - 관계형 데이터베이스 (Supabase 포함)
+- **PostgreSQL 16** - 관계형 데이터베이스 (Docker)
+- **Drizzle ORM** - TypeScript ORM
+- **커스텀 JWT** - jose + bcryptjs 기반 인증
 
 ### 🚀 배포 & 호스팅
 
-- **Vercel** - Next.js 15 최적화 배포 플랫폼
+- **Docker Compose** - Nginx + App + PostgreSQL 컨테이너 배포
 
 ### 📦 패키지 관리
 
@@ -280,7 +281,7 @@ model: sonnet
 - **Next.js 15 기반**: 최신 App Router, 향상된 성능, React 19 지원
 - **TailwindCSS v4**: 설정 파일 없는 새로운 CSS 엔진 활용
 - **TypeScript**: 최신 타입 시스템으로 코드 안정성
-- **Supabase**: 백엔드 인프라 최소화, 실시간 기능
+- **PostgreSQL + Drizzle ORM**: Docker 기반 자체 호스팅 DB
 - **학습 곡선이 낮고 문서화가 잘 된 최신 기술** 우선
 - **커뮤니티가 활발하고 장기 지원되는 기술** 우선
 

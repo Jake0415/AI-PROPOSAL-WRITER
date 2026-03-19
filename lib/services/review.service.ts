@@ -3,10 +3,7 @@ import { rfpRepository } from '@/lib/repositories/rfp.repository';
 import { proposalRepository } from '@/lib/repositories/proposal.repository';
 import { projectRepository } from '@/lib/repositories/project.repository';
 import { reviewRepository } from '@/lib/repositories/review.repository';
-import {
-  REVIEW_SYSTEM_PROMPT,
-  buildReviewPrompt,
-} from '@/lib/ai/prompts/review-generation';
+import { getPrompt } from '@/lib/services/prompt.service';
 import type { ReviewReportResult } from '@/lib/ai/types';
 import type { ReviewGrade } from '@/lib/db/schema';
 import type { SSEProgress } from '@/lib/utils/sse-stream';
@@ -75,10 +72,11 @@ export async function generateReview(
       })
     : '{}';
 
+  const prompt = await getPrompt('review-generation');
   const result = await generateText({
-    systemPrompt: REVIEW_SYSTEM_PROMPT,
-    userPrompt: buildReviewPrompt(analysisJson, sectionsJson, strategyJson),
-    maxTokens: 16384,
+    systemPrompt: prompt.systemPrompt,
+    userPrompt: prompt.buildUserPrompt(analysisJson, sectionsJson, strategyJson),
+    maxTokens: prompt.maxTokens,
   });
 
   onProgress?.({ step: '결과 저장', progress: 85 });

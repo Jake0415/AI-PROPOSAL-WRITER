@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from '@/lib/ai/client';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
 import { proposalRepository } from '@/lib/repositories/proposal.repository';
-import {
-  COACHING_SYSTEM_PROMPT,
-  buildCoachingPrompt,
-} from '@/lib/ai/prompts/coaching';
+import { getPrompt } from '@/lib/services/prompt.service';
 
 // 유효한 코칭 대상 단계
 const VALID_STEPS = ['analysis', 'direction', 'strategy', 'outline'] as const;
@@ -115,10 +112,11 @@ export async function POST(
         send('progress', { step: 'AI 코칭 분석 중', progress: 30 });
 
         // AI 코칭 실행
+        const prompt = await getPrompt('coaching');
         const result = await generateText({
-          systemPrompt: COACHING_SYSTEM_PROMPT,
-          userPrompt: buildCoachingPrompt(stepKey, stepData),
-          maxTokens: 4096,
+          systemPrompt: prompt.systemPrompt,
+          userPrompt: prompt.buildUserPrompt(stepKey, stepData),
+          maxTokens: prompt.maxTokens,
         });
 
         send('progress', { step: '결과 처리 중', progress: 80 });

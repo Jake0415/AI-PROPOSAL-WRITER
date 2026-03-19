@@ -2,10 +2,7 @@ import { generateText } from '@/lib/ai/client';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
 import { proposalRepository } from '@/lib/repositories/proposal.repository';
 import { projectRepository } from '@/lib/repositories/project.repository';
-import {
-  DIRECTION_SYSTEM_PROMPT,
-  buildDirectionPrompt,
-} from '@/lib/ai/prompts/direction-generation';
+import { getPrompt } from '@/lib/services/prompt.service';
 import type { DirectionCandidate } from '@/lib/ai/types';
 import type { SSEProgress } from '@/lib/utils/sse-stream';
 
@@ -31,10 +28,11 @@ export async function generateDirections(
     keywords: analysis.keywords,
   });
 
+  const prompt = await getPrompt('direction-generation');
   const result = await generateText({
-    systemPrompt: DIRECTION_SYSTEM_PROMPT,
-    userPrompt: buildDirectionPrompt(analysisJson),
-    maxTokens: 4096,
+    systemPrompt: prompt.systemPrompt,
+    userPrompt: prompt.buildUserPrompt(analysisJson),
+    maxTokens: prompt.maxTokens,
   });
 
   onProgress?.({ step: '결과 저장', progress: 80 });

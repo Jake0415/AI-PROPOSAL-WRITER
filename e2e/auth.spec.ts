@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 // 시드 계정 정보
-const SUPER_ADMIN = { loginId: 'superadmin', password: 'admin1234' };
+const SUPER_ADMIN = { loginId: 'yhk71261@gmail.com', password: '@Dnflwlq01' };
 const ADMIN = { loginId: 'admin', password: 'admin1234' };
 const TEST_USER = { loginId: 'testuser', password: 'test1234' };
 

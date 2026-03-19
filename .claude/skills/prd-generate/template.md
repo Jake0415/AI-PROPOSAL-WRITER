@@ -87,9 +87,10 @@
 
 ### 백엔드 & 데이터베이스
 
-- **Supabase** - BaaS (인증, DB, 실시간)
-- **PostgreSQL** - 관계형 DB
+- **PostgreSQL 16** - 관계형 DB (Docker)
+- **Drizzle ORM** - TypeScript ORM
+- **커스텀 JWT** - jose + bcryptjs 인증
 
 ### 배포
 
-- **Vercel** - Next.js 최적화 배포
+- **Docker Compose** - Nginx + App + PostgreSQL

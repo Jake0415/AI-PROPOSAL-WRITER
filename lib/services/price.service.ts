@@ -2,10 +2,7 @@ import { generateText } from '@/lib/ai/client';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
 import { proposalRepository } from '@/lib/repositories/proposal.repository';
 import { priceRepository } from '@/lib/repositories/price.repository';
-import {
-  PRICE_SYSTEM_PROMPT,
-  buildPricePrompt,
-} from '@/lib/ai/prompts/price-generation';
+import { getPrompt } from '@/lib/services/prompt.service';
 import type { PriceProposalResult } from '@/lib/ai/types';
 import type { SSEProgress } from '@/lib/utils/sse-stream';
 
@@ -61,10 +58,11 @@ export async function generatePrice(
     })),
   );
 
+  const prompt = await getPrompt('price-generation');
   const result = await generateText({
-    systemPrompt: PRICE_SYSTEM_PROMPT,
-    userPrompt: buildPricePrompt(analysisJson, sectionsJson),
-    maxTokens: 8192,
+    systemPrompt: prompt.systemPrompt,
+    userPrompt: prompt.buildUserPrompt(analysisJson, sectionsJson),
+    maxTokens: prompt.maxTokens,
   });
 
   onProgress?.({ step: '결과 저장', progress: 85 });

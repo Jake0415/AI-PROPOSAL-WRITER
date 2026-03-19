@@ -1,10 +1,7 @@
 import { generateStream } from '@/lib/ai/client';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
 import { projectRepository } from '@/lib/repositories/project.repository';
-import {
-  RFP_ANALYSIS_SYSTEM_PROMPT,
-  buildRfpAnalysisPrompt,
-} from '@/lib/ai/prompts/rfp-analysis';
+import { getPrompt } from '@/lib/services/prompt.service';
 import type { RfpAnalysisResult } from '@/lib/ai/types';
 import type { SSEProgress } from '@/lib/utils/sse-stream';
 
@@ -75,10 +72,11 @@ export async function runAnalysis(
   let accumulated = '';
   let currentStepIdx = -1;
 
+  const prompt = await getPrompt('rfp-analysis');
   const stream = generateStream({
-    systemPrompt: RFP_ANALYSIS_SYSTEM_PROMPT,
-    userPrompt: buildRfpAnalysisPrompt(rfpFile.rawText),
-    maxTokens: 16384,
+    systemPrompt: prompt.systemPrompt,
+    userPrompt: prompt.buildUserPrompt(rfpFile.rawText),
+    maxTokens: prompt.maxTokens,
   });
 
   for await (const chunk of stream) {

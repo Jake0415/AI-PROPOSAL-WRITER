@@ -2,10 +2,7 @@ import { generateText } from '@/lib/ai/client';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
 import { proposalRepository } from '@/lib/repositories/proposal.repository';
 import { projectRepository } from '@/lib/repositories/project.repository';
-import {
-  OUTLINE_SYSTEM_PROMPT,
-  buildOutlinePrompt,
-} from '@/lib/ai/prompts/outline-generation';
+import { getPrompt } from '@/lib/services/prompt.service';
 import type { OutlineSection } from '@/lib/ai/types';
 import type { SSEProgress } from '@/lib/utils/sse-stream';
 
@@ -38,10 +35,11 @@ export async function generateOutline(
     keyMessages: strategy.keyMessages,
   });
 
+  const prompt = await getPrompt('outline-generation');
   const result = await generateText({
-    systemPrompt: OUTLINE_SYSTEM_PROMPT,
-    userPrompt: buildOutlinePrompt(analysisJson, strategyJson),
-    maxTokens: 4096,
+    systemPrompt: prompt.systemPrompt,
+    userPrompt: prompt.buildUserPrompt(analysisJson, strategyJson),
+    maxTokens: prompt.maxTokens,
   });
 
   onProgress?.({ step: '결과 저장', progress: 80 });

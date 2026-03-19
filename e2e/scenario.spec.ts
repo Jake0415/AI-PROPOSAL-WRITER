@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-const ADMIN = { loginId: 'superadmin', password: 'admin1234' };
-const PROJECT_ID = 'proj-demo-001';
+const ADMIN = { loginId: 'yhk71261@gmail.com', password: '@Dnflwlq01' };
+const PROJECT_ID = '00000000-0000-4000-a000-000000000001';
 
 // 로그인 헬퍼 (API 직접 호출로 빠르고 안정적인 로그인)
 async function login(page: import('@playwright/test').Page) {

@@ -104,6 +104,9 @@ export function Navbar() {
                 <Link href="/admin/data" className="transition-colors hover:text-foreground/80 text-muted-foreground">
                   데이터 관리
                 </Link>
+                <Link href="/admin/prompts" className="transition-colors hover:text-foreground/80 text-muted-foreground">
+                  프롬프트
+                </Link>
               </>
             )}
           </nav>

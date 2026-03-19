@@ -3,6 +3,7 @@ import postgres from 'postgres';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import * as schema from '../lib/db/schema';
+import { DEFAULT_PROMPTS } from '../lib/ai/prompts/defaults';
 
 // 고정 UUID (테스트에서 참조)
 const PROJECT_ID = '00000000-0000-4000-a000-000000000001';
@@ -24,6 +25,20 @@ async function seedData() {
   const existingProject = await db.select().from(schema.projects).where(
     eq(schema.projects.id, PROJECT_ID)
   );
+
+  // ─── 프롬프트 템플릿 시드 (항상 실행, 중복 무시) ──────────
+  for (const def of Object.values(DEFAULT_PROMPTS)) {
+    await db.insert(schema.promptTemplates).values({
+      slug: def.slug,
+      name: def.name,
+      description: def.description,
+      category: def.category,
+      systemPrompt: def.systemPrompt,
+      userPromptTemplate: '',
+      maxTokens: def.maxTokens,
+    }).onConflictDoNothing();
+  }
+  console.log('✅ 프롬프트 템플릿 9개 생성 (또는 이미 존재)');
 
   if (existingProject.length > 0) {
     console.log('⏭️  데모 프로젝트 이미 존재, 건너뜀');

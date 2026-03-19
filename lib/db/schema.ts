@@ -278,12 +278,13 @@ export type AuditAction =
   | 'output.download'
   | 'template.upload' | 'template.delete'
   | 'user.create' | 'user.update' | 'user.delete'
-  | 'settings.update';
+  | 'settings.update'
+  | 'prompt.create' | 'prompt.update' | 'prompt.revert';
 
 export type AuditResourceType =
   | 'auth' | 'project' | 'rfp' | 'direction' | 'strategy'
   | 'outline' | 'section' | 'review' | 'price' | 'output'
-  | 'template' | 'user' | 'settings';
+  | 'template' | 'user' | 'settings' | 'prompt';
 
 export const auditLogs = aiprowriterSchema.table('audit_logs', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -299,6 +300,43 @@ export const auditLogs = aiprowriterSchema.table('audit_logs', {
   index('audit_logs_user_id_idx').on(table.userId),
   index('audit_logs_action_idx').on(table.action),
   index('audit_logs_created_at_idx').on(table.createdAt),
+]);
+
+// ─── Prompt Templates (프롬프트 관리) ────────────────────────
+
+export type PromptCategory = 'analysis' | 'generation' | 'review' | 'coaching' | 'price';
+
+export const promptTemplates = aiprowriterSchema.table('prompt_templates', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  slug: text('slug').notNull().unique(),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  category: text('category').$type<PromptCategory>().notNull(),
+  systemPrompt: text('system_prompt').notNull(),
+  userPromptTemplate: text('user_prompt_template').notNull(),
+  maxTokens: integer('max_tokens').notNull().default(4096),
+  version: integer('version').notNull().default(1),
+  isActive: boolean('is_active').notNull().default(true),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('prompt_templates_slug_idx').on(table.slug),
+  index('prompt_templates_category_idx').on(table.category),
+]);
+
+export const promptTemplateVersions = aiprowriterSchema.table('prompt_template_versions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  templateId: uuid('template_id').notNull().references(() => promptTemplates.id, { onDelete: 'cascade' }),
+  version: integer('version').notNull(),
+  systemPrompt: text('system_prompt').notNull(),
+  userPromptTemplate: text('user_prompt_template').notNull(),
+  maxTokens: integer('max_tokens').notNull(),
+  changedBy: uuid('changed_by').references(() => profiles.id, { onDelete: 'set null' }),
+  changeNote: text('change_note').notNull().default(''),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('prompt_versions_template_id_idx').on(table.templateId),
 ]);
 
 // ─── Relations ──────────────────────────────────────────────
@@ -365,4 +403,13 @@ export const outputFilesRelations = relations(outputFiles, ({ one }) => ({
 
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   user: one(profiles, { fields: [auditLogs.userId], references: [profiles.id] }),
+}));
+
+export const promptTemplatesRelations = relations(promptTemplates, ({ many }) => ({
+  versions: many(promptTemplateVersions),
+}));
+
+export const promptTemplateVersionsRelations = relations(promptTemplateVersions, ({ one }) => ({
+  template: one(promptTemplates, { fields: [promptTemplateVersions.templateId], references: [promptTemplates.id] }),
+  changedByUser: one(profiles, { fields: [promptTemplateVersions.changedBy], references: [profiles.id] }),
 }));

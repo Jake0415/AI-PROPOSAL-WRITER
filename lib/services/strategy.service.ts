@@ -2,10 +2,7 @@ import { generateText } from '@/lib/ai/client';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
 import { proposalRepository } from '@/lib/repositories/proposal.repository';
 import { projectRepository } from '@/lib/repositories/project.repository';
-import {
-  STRATEGY_SYSTEM_PROMPT,
-  buildStrategyPrompt,
-} from '@/lib/ai/prompts/strategy-generation';
+import { getPrompt } from '@/lib/services/prompt.service';
 
 export interface StrategyResult {
   competitiveStrategy: string;
@@ -42,10 +39,11 @@ export async function generateStrategy(
   const candidates = direction.candidates;
   const selected = candidates[direction.selectedIndex ?? 0];
 
+  const prompt = await getPrompt('strategy-generation');
   const result = await generateText({
-    systemPrompt: STRATEGY_SYSTEM_PROMPT,
-    userPrompt: buildStrategyPrompt(analysisJson, JSON.stringify(selected), writingStyle),
-    maxTokens: 4096,
+    systemPrompt: prompt.systemPrompt,
+    userPrompt: prompt.buildUserPrompt(analysisJson, JSON.stringify(selected), writingStyle),
+    maxTokens: prompt.maxTokens,
   });
 
   onProgress?.({ step: '결과 저장', progress: 80 });
