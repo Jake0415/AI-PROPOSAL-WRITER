@@ -10,7 +10,7 @@ import { LogOut, User } from 'lucide-react';
 
 interface AuthUser {
   id: string;
-  email: string;
+  loginId: string;
   name: string;
   role: string;
 }
@@ -69,12 +69,22 @@ export function Navbar() {
             >
               설정
             </Link>
-            <Link
-              href="/admin"
-              className="transition-colors hover:text-foreground/80 text-muted-foreground"
-            >
-              관리
-            </Link>
+            {user && (user.role === 'super_admin' || user.role === 'admin') && (
+              <>
+                <Link
+                  href="/admin"
+                  className="transition-colors hover:text-foreground/80 text-muted-foreground"
+                >
+                  관리
+                </Link>
+                <Link
+                  href="/admin/users"
+                  className="transition-colors hover:text-foreground/80 text-muted-foreground"
+                >
+                  사용자
+                </Link>
+              </>
+            )}
           </nav>
         </div>
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
@@ -88,7 +98,7 @@ export function Navbar() {
               <>
                 <span className="text-xs text-muted-foreground hidden sm:inline-flex items-center gap-1">
                   <User className="h-3 w-3" />
-                  {user.name || user.email}
+                  {user.name || user.loginId}
                 </span>
                 <Button
                   variant="ghost"

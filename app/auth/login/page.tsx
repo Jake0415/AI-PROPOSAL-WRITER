@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,7 +22,7 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ loginId, password }),
       });
 
       const data = await res.json();
@@ -52,14 +51,14 @@ export default function LoginPage() {
         </CardHeader>
         <form onSubmit={handleSubmit} className="px-6 pb-6 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">이메일</Label>
+            <Label htmlFor="loginId">아이디</Label>
             <Input
-              id="email"
-              type="email"
-              placeholder="name@example.com"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="loginId"
+              type="text"
+              placeholder="아이디를 입력하세요"
+              autoComplete="username"
+              value={loginId}
+              onChange={(e) => setLoginId(e.target.value)}
               required
             />
           </div>
@@ -84,13 +83,6 @@ export default function LoginPage() {
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             로그인
           </Button>
-
-          <p className="text-center text-sm text-muted-foreground">
-            계정이 없으신가요?{' '}
-            <Link href="/auth/register" className="text-primary hover:underline">
-              회원가입
-            </Link>
-          </p>
         </form>
       </Card>
     </div>

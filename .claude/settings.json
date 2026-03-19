@@ -14,7 +14,18 @@
       "Bash(find /c/claude-code/AI-PROPOSAL-WRITER -name .env* -type f)",
       "Read(//dev/**)",
       "Bash(node -e \":*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Read(//c/Program Files/Docker//**)",
+      "Read(//c/Program Files \\(x86\\)/**)",
+      "Bash(where docker:*)",
+      "Bash(docker version:*)",
+      "Read(//d/Docker/Docker/**)",
+      "Bash(findstr :5432)",
+      "Bash(findstr \":5433\\\\|:5434\\\\|:5435\")",
+      "Bash(PLAYWRIGHT_BASE_URL=http://localhost:3100 npx playwright test --reporter=list)",
+      "Bash(npm install:*)",
+      "Bash(DATABASE_URL=postgresql://aiprowriter:aiprowriter@localhost:5434/aiprowriter npx tsx scripts/seed.ts)",
+      "Bash(DATABASE_URL=postgresql://aiprowriter:aiprowriter@localhost:5434/aiprowriter npx drizzle-kit push)"
     ]
   }
 }

@@ -2,7 +2,7 @@ import { SignJWT, jwtVerify } from 'jose';
 
 export interface JwtPayload {
   userId: string;
-  email: string;
+  loginId: string;
 }
 
 function getSecret() {
@@ -26,7 +26,7 @@ export async function verifyToken(token: string): Promise<JwtPayload | null> {
     const { payload } = await jwtVerify(token, getSecret());
     return {
       userId: payload.userId as string,
-      email: payload.email as string,
+      loginId: payload.loginId as string,
     };
   } catch {
     return null;

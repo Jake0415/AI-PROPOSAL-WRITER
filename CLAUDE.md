@@ -2,27 +2,99 @@
 
 이 파일은 이 레포지토리에서 Claude Code (claude.ai/code)가 작업할 때 필요한 지침을 제공합니다.
 
-## 개발 명령어
+## 개발 워크플로우
+
+코드 수정 → 로컬 테스트 → Docker 배포 → git push 순서로 진행합니다.
+
+### Phase 1: 로컬 개발
 
 ```bash
-# Turbopack을 사용한 개발 서버 실행
-npm run dev
-
-# Turbopack을 사용한 프로덕션 빌드  
-npm run build
-
-# 프로덕션 서버 실행
-npm run start
-
-# 린트 검사
-npm run lint
-
-# TypeScript 타입 체크
-npx tsc --noEmit
-
-# shadcn/ui 컴포넌트 추가
-npx shadcn@latest add [component-name]
+npm run dev:db          # Docker DB만 시작 (localhost:5434)
+npm run dev             # 로컬 dev 서버 시작 (localhost:3000)
+npm run dev:seed        # 시드 데이터 생성 (최초 1회)
 ```
+
+- 로컬 dev 서버: http://localhost:3000
+- DB: Docker PostgreSQL (localhost:5434)
+- HMR 자동 반영으로 빠른 개발
+
+### Phase 2: 테스트 (로컬)
+
+```bash
+npm run verify          # 전체 검증 (타입체크 + 린트 + 유닛테스트 + E2E)
+```
+
+또는 개별 실행:
+```bash
+npx tsc --noEmit        # 타입 체크
+npm run lint            # 린트 검사
+npm run test            # Vitest 유닛 테스트
+npm run test:e2e        # Playwright E2E 테스트 (localhost:3000)
+```
+
+### Phase 3: Docker 빌드 + 배포
+
+```bash
+npm run deploy          # Docker 전체 빌드 + 시작 (Nginx + App + DB)
+npm run deploy:migrate  # DB 마이그레이션 (스키마 변경 시)
+npm run deploy:verify   # 배포 후 E2E 검증 (localhost:3100, nginx 경유)
+```
+
+- 배포 URL: http://localhost:3100 (Nginx → App → DB)
+
+### Phase 4: Git Push
+
+```bash
+git add [files]
+git commit -m "커밋 메시지"
+git push
+```
+
+## 개발 명령어 (전체)
+
+```bash
+# 개발
+npm run dev             # 로컬 dev 서버 (localhost:3000)
+npm run dev:db          # Docker DB만 시작
+npm run dev:seed        # 시드 데이터 생성
+
+# 빌드
+npm run build           # 프로덕션 빌드
+npm run start           # 프로덕션 서버
+
+# 테스트
+npm run test            # Vitest 유닛 테스트
+npm run test:unit       # lib 디렉토리만 테스트
+npm run test:watch      # 워치 모드
+npm run test:e2e        # Playwright E2E (localhost:3000)
+npm run test:e2e:ui     # E2E UI 모드
+npm run verify          # 전체 검증 파이프라인
+
+# 배포
+npm run deploy          # Docker 빌드 + 시작
+npm run deploy:migrate  # DB 마이그레이션
+npm run deploy:verify   # 배포 후 E2E 검증 (localhost:3100)
+
+# 기타
+npm run lint            # ESLint
+npx tsc --noEmit        # 타입 체크
+npx shadcn@latest add [component-name]  # shadcn/ui 컴포넌트 추가
+```
+
+## 환경 구성
+
+| 환경 | URL | DB | 용도 |
+|------|-----|-----|------|
+| 로컬 dev | localhost:3000 | Docker DB (localhost:5434) | 개발 + 빠른 테스트 |
+| Docker 배포 | localhost:3100 | Docker DB (내부 db:5432) | 프로덕션 시뮬레이션 |
+
+### 시드 계정
+
+| 역할 | 아이디 | 비밀번호 |
+|------|--------|----------|
+| 최고관리자 | superadmin | admin1234 |
+| 관리자 | admin | admin1234 |
+| 테스트 | testuser | test1234 |
 
 ## 아키텍처 개요
 

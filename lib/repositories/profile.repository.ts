@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, count } from 'drizzle-orm';
 import { getDb } from '@/lib/db/client';
 import { profiles } from '@/lib/db/schema';
 import type { AppRole } from '@/lib/db/schema';
@@ -18,51 +18,60 @@ export const profileRepository = {
     return results[0];
   },
 
-  async findByEmail(email: string) {
+  async findByLoginId(loginId: string) {
     const db = getDb();
     const results = await db
       .select()
       .from(profiles)
-      .where(eq(profiles.email, email));
+      .where(eq(profiles.loginId, loginId));
     return results[0];
   },
 
-  async upsert(data: {
+  async count() {
+    const db = getDb();
+    const result = await db.select({ value: count() }).from(profiles);
+    return result[0]?.value ?? 0;
+  },
+
+  async create(data: {
     id: string;
-    email: string;
+    loginId: string;
     passwordHash: string;
     name: string;
+    phone?: string;
+    department?: string;
     role?: AppRole;
-    avatarUrl?: string | null;
   }) {
     const db = getDb();
     const now = new Date().toISOString();
-    const existing = await this.findByUserId(data.id);
-
-    if (existing) {
-      await db
-        .update(profiles)
-        .set({
-          email: data.email,
-          name: data.name,
-          avatarUrl: data.avatarUrl ?? existing.avatarUrl,
-          updatedAt: now,
-        })
-        .where(eq(profiles.id, data.id));
-    } else {
-      await db.insert(profiles).values({
-        id: data.id,
-        email: data.email,
-        passwordHash: data.passwordHash,
-        name: data.name,
-        role: data.role ?? 'viewer',
-        avatarUrl: data.avatarUrl ?? null,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
-
+    await db.insert(profiles).values({
+      id: data.id,
+      loginId: data.loginId,
+      passwordHash: data.passwordHash,
+      name: data.name,
+      phone: data.phone ?? '',
+      department: data.department ?? '',
+      role: data.role ?? 'viewer',
+      createdAt: now,
+      updatedAt: now,
+    });
     return this.findByUserId(data.id);
+  },
+
+  async update(userId: string, data: {
+    name?: string;
+    phone?: string;
+    department?: string;
+    role?: AppRole;
+    passwordHash?: string;
+    avatarUrl?: string | null;
+  }) {
+    const db = getDb();
+    await db
+      .update(profiles)
+      .set({ ...data, updatedAt: new Date().toISOString() })
+      .where(eq(profiles.id, userId));
+    return this.findByUserId(userId);
   },
 
   async updateRole(userId: string, role: AppRole) {
@@ -71,5 +80,10 @@ export const profileRepository = {
       .update(profiles)
       .set({ role, updatedAt: new Date().toISOString() })
       .where(eq(profiles.id, userId));
+  },
+
+  async deleteUser(userId: string) {
+    const db = getDb();
+    await db.delete(profiles).where(eq(profiles.id, userId));
   },
 };

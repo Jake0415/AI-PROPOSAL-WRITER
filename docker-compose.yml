@@ -1,4 +1,21 @@
 services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "3100:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:80/api/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
+
   db:
     image: postgres:16-alpine
     environment:
@@ -8,7 +25,7 @@ services:
     volumes:
       - pg-data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5434:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U aiprowriter"]
       interval: 10s
@@ -23,8 +40,8 @@ services:
       args:
         NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-AIPROWRITER}
         NEXT_PUBLIC_APP_DESCRIPTION: ${NEXT_PUBLIC_APP_DESCRIPTION:-RFP를 업로드하면 AI가 분석하여 완성된 제안서를 자동 생성합니다}
-    ports:
-      - "3100:3000"
+    expose:
+      - "3000"
     env_file:
       - .env.local
     environment:
@@ -38,10 +55,10 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
       interval: 30s
-      timeout: 5s
-      start_period: 10s
+      timeout: 10s
+      start_period: 30s
       retries: 3
     deploy:
       resources:

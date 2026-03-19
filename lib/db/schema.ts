@@ -19,13 +19,15 @@ export type SectionStatus = 'pending' | 'generating' | 'generated' | 'edited';
 
 // ─── Profiles ────────────────────────────────────────────────
 
-export type AppRole = 'admin' | 'proposal_pm' | 'tech_writer' | 'viewer';
+export type AppRole = 'super_admin' | 'admin' | 'proposal_pm' | 'tech_writer' | 'viewer';
 
 export const profiles = aiprowriterSchema.table('profiles', {
   id: text('id').primaryKey(),
-  email: text('email').notNull(),
+  loginId: text('login_id').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
   name: text('name').notNull().default(''),
+  phone: text('phone').notNull().default(''),
+  department: text('department').notNull().default(''),
   role: text('role').$type<AppRole>().notNull().default('viewer'),
   avatarUrl: text('avatar_url'),
   createdAt: text('created_at').notNull(),

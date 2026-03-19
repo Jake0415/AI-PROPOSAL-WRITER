@@ -4,7 +4,7 @@ import { generateRequestId, logger } from '@/lib/logger';
 import { checkRateLimit } from '@/lib/security/rate-limiter';
 
 // 인증 불필요한 공개 경로
-const PUBLIC_PATHS = ['/auth', '/guide', '/api/health', '/api/auth'];
+const PUBLIC_PATHS = ['/auth', '/guide', '/api/health', '/api/auth', '/setup', '/api/setup'];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname.startsWith(p));

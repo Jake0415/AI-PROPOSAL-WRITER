@@ -2,10 +2,17 @@ import { describe, it, expect } from 'vitest';
 import { hasAppPermission, hasProjectPermission, isRoleAtLeast } from './roles';
 
 describe('hasAppPermission', () => {
-  it('admin은 모든 권한을 가진다', () => {
+  it('super_admin은 모든 권한을 가진다', () => {
+    expect(hasAppPermission('super_admin', 'manage_users')).toBe(true);
+    expect(hasAppPermission('super_admin', 'manage_system')).toBe(true);
+    expect(hasAppPermission('super_admin', 'manage_projects')).toBe(true);
+  });
+
+  it('admin은 시스템 관리를 제외한 권한을 가진다', () => {
     expect(hasAppPermission('admin', 'manage_users')).toBe(true);
     expect(hasAppPermission('admin', 'manage_projects')).toBe(true);
     expect(hasAppPermission('admin', 'view_admin')).toBe(true);
+    expect(hasAppPermission('admin', 'manage_system')).toBe(false);
   });
 
   it('viewer는 view_projects만 가진다', () => {
@@ -42,6 +49,7 @@ describe('isRoleAtLeast', () => {
   });
 
   it('상위 역할은 true', () => {
+    expect(isRoleAtLeast('super_admin', 'admin')).toBe(true);
     expect(isRoleAtLeast('admin', 'viewer')).toBe(true);
     expect(isRoleAtLeast('proposal_pm', 'tech_writer')).toBe(true);
   });

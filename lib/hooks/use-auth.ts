@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 
 interface Profile {
   id: string;
-  email: string;
+  loginId: string;
   name: string;
+  phone: string;
+  department: string;
   role: string;
   avatarUrl: string | null;
 }

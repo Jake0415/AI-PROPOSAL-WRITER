@@ -24,8 +24,10 @@ export async function GET() {
       success: true,
       data: {
         id: profile.id,
-        email: profile.email,
+        loginId: profile.loginId,
         name: profile.name,
+        phone: profile.phone,
+        department: profile.department,
         role: profile.role,
         avatarUrl: profile.avatarUrl,
       },

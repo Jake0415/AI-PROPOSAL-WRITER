@@ -12,7 +12,7 @@ test('미인증 사용자는 로그인 페이지로 리다이렉트', async ({ p
 
 test('로그인 페이지가 표시된다', async ({ page }) => {
   await page.goto('/auth/login');
-  await expect(page.locator('text=로그인')).toBeVisible();
+  await expect(page.getByRole('button', { name: '로그인' })).toBeVisible();
 });
 
 test('가이드 페이지는 공개 접근 가능', async ({ page }) => {

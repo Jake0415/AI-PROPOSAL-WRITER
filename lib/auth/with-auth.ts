@@ -4,9 +4,9 @@ import { profileRepository } from '@/lib/repositories/profile.repository';
 import { isRoleAtLeast } from './roles';
 import type { AppRole } from '@/lib/db/schema';
 
-interface AuthenticatedUser {
+export interface AuthenticatedUser {
   id: string;
-  email: string;
+  loginId: string;
   role: AppRole;
 }
 
@@ -24,7 +24,7 @@ export async function requireAuth(): Promise<AuthenticatedUser | NextResponse> {
   const profile = await profileRepository.findByUserId(session.userId);
   return {
     id: session.userId,
-    email: session.email,
+    loginId: session.loginId,
     role: (profile?.role as AppRole) ?? 'viewer',
   };
 }

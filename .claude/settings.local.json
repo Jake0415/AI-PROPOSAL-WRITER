@@ -2,24 +2,45 @@
   "permissions": {
     "allow": [
       "Bash",
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
       "WebFetch",
       "WebSearch",
+      "Agent",
+      "TodoWrite",
+      "NotebookEdit",
       "mcp__sequential-thinking",
       "mcp__shadcn",
       "mcp__shadcn__search_items_in_registries",
       "mcp__context7__resolve-library-id",
       "mcp__context7__get-library-docs",
+      "mcp__context7__query-docs",
       "mcp__slack__slack_list_channels",
       "mcp__slack__slack_post_message",
       "mcp__slack__slack_get_channel_history",
       "mcp__slack__slack_get_thread_replies",
+      "mcp__claude_ai_Gmail",
+      "mcp__shrimp-task-manager",
       "Bash(git pull:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git branch:*)",
+      "Bash(git merge:*)",
+      "Bash(docker:*)",
+      "Bash(docker-compose:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)"
     ],
     "deny": [
-      "Bash(rm:*)",
-      "Bash(git reset:*)",
-      "Bash(git push --force:*)"
+      "Bash(rm -rf /:*)",
+      "Bash(git push --force origin main:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(DROP DATABASE:*)"
     ],
     "ask": []
   },
@@ -33,7 +54,7 @@
     ],
     "stop": [
       {
-        "command": "echo '--- 품질 확인 ---' && npx tsc --noEmit 2>&1 | tail -5 && echo '---' && grep -rn 'console\\.log' --include='*.ts' --include='*.tsx' app/ components/ lib/ 2>/dev/null | head -5 && echo '확인 완료'"
+        "command": "echo '=== 검증 시작 ===' && echo '--- 타입 체크 ---' && npx tsc --noEmit 2>&1 | tail -3 && echo '--- E2E 테스트 ---' && PLAYWRIGHT_BASE_URL=http://localhost:3100 npx playwright test --reporter=list 2>&1 | tail -15 && echo '=== 검증 완료 ==='"
       }
     ],
     "Notification": [
