@@ -7,15 +7,10 @@ const TAG_LENGTH = 16;
 function getEncryptionKey(): Buffer {
   const key = process.env.ENCRYPTION_KEY;
   if (!key) {
-    // 키가 없으면 폴백: DATABASE_URL 해시를 사용 (프로덕션에서는 ENCRYPTION_KEY 설정 권장)
-    const { createHash } = require('crypto');
-    const dbUrl = process.env.DATABASE_URL || 'default-fallback-key';
-    return createHash('sha256').update(dbUrl).digest();
+    throw new Error('ENCRYPTION_KEY 환경변수가 설정되지 않았습니다. .env.local에 ENCRYPTION_KEY를 추가하세요.');
   }
-  // hex 또는 base64 형식 지원
   if (key.length === 64) return Buffer.from(key, 'hex');
   if (key.length === 44) return Buffer.from(key, 'base64');
-  // 32바이트 미만이면 SHA-256 해시
   const { createHash } = require('crypto');
   return createHash('sha256').update(key).digest();
 }

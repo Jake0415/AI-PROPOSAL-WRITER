@@ -13,12 +13,20 @@ export async function GET() {
     // DB 키 존재 여부 + 마스킹
     let claudeKeyMasked = '';
     let gptKeyMasked = '';
+    let claudeKeyValid = false;
+    let gptKeyValid = false;
     try {
-      if (settings.claudeApiKey) claudeKeyMasked = maskApiKey(decrypt(settings.claudeApiKey));
-    } catch { /* 복호화 실패 */ }
+      if (settings.claudeApiKey) {
+        claudeKeyMasked = maskApiKey(decrypt(settings.claudeApiKey));
+        claudeKeyValid = true;
+      }
+    } catch { claudeKeyMasked = '(복호화 실패 - 재입력 필요)'; }
     try {
-      if (settings.gptApiKey) gptKeyMasked = maskApiKey(decrypt(settings.gptApiKey));
-    } catch { /* 복호화 실패 */ }
+      if (settings.gptApiKey) {
+        gptKeyMasked = maskApiKey(decrypt(settings.gptApiKey));
+        gptKeyValid = true;
+      }
+    } catch { gptKeyMasked = '(복호화 실패 - 재입력 필요)'; }
 
     return NextResponse.json({
       success: true,
@@ -26,8 +34,8 @@ export async function GET() {
         provider: settings.provider,
         claudeModel: settings.claudeModel,
         gptModel: settings.gptModel,
-        hasClaudeKey: !!(settings.claudeApiKey || process.env.ANTHROPIC_API_KEY),
-        hasGptKey: !!(settings.gptApiKey || process.env.OPENAI_API_KEY),
+        hasClaudeKey: claudeKeyValid || !!process.env.ANTHROPIC_API_KEY,
+        hasGptKey: gptKeyValid || !!process.env.OPENAI_API_KEY,
         claudeKeyMasked,
         gptKeyMasked,
       },
