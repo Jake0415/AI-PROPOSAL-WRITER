@@ -173,7 +173,7 @@ export default function UploadPage() {
                     업로드 중...
                   </>
                 ) : (
-                  '업로드 및 분석 시작'
+                  '파일 업로드'
                 )}
               </Button>
               {!isUploading && (

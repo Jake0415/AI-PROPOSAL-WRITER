@@ -758,7 +758,7 @@ interface SSEEvent {
 | --- | --- | --- |
 | 로그인 | /login | 커스텀 JWT 이메일/PW 로그인 |
 | 대시보드 | / | 프로젝트 목록, 새 프로젝트 생성 |
-| RFP 업로드 | /projects/[id]/upload | 파일 드래그앤드롭 업로드 |
+| RFP 업로드 | /projects/[id]/upload | 파일 드래그앤드롭 업로드 (업로드만 수행, 분석은 다음 단계에서 시작) |
 | RFP 분석 결과 | /projects/[id]/analysis | **6개 탭**: 사업개요/요구사항/평가기준/추적성/키워드/원문 |
 | 방향성 설정 | /projects/[id]/direction | 방향 후보 카드 비교/선택 + 경쟁 분석 패널 |
 | 전략 설정 | /projects/[id]/strategy | 전략/차별화 포인트 확인/수정 |
