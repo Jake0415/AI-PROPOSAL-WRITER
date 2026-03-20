@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { AnalysisProgressStepper } from '@/components/project/analysis-progress-stepper';
 import { CoachingButton } from '@/components/guide/coaching-button';
 import { AiChatPanel } from '@/components/project/ai-chat-panel';
+import { AnalysisStepRunner } from '@/components/project/analysis-step-runner';
 import { useSSE } from '@/lib/hooks/use-sse';
 import type { RfpAnalysisResult } from '@/lib/ai/types';
 import { REQUIREMENT_CATEGORY_LABELS } from '@/lib/ai/types';
@@ -28,6 +29,7 @@ export default function AnalysisPage() {
   const projectId = params.id as string;
 
   const [analysis, setAnalysis] = useState<RfpAnalysisResult | null>(null);
+  const [analysisMode, setAnalysisMode] = useState<'legacy' | 'step'>('step');
   const sse = useSSE<RfpAnalysisResult>();
 
   const fetchExisting = useCallback(async () => {
@@ -84,10 +86,15 @@ export default function AnalysisPage() {
         </div>
         <div className="flex items-center gap-2">
           {!analysis && !sse.isLoading && (
-            <Button onClick={startAnalysis}>
-              <Loader2 className="mr-2 h-4 w-4" />
-              분석 시작
-            </Button>
+            <>
+              <Button variant="outline" onClick={() => { setAnalysisMode('step'); }}>
+                단계별 분석
+              </Button>
+              <Button onClick={() => { setAnalysisMode('legacy'); startAnalysis(); }}>
+                <Loader2 className="mr-2 h-4 w-4" />
+                전체 분석
+              </Button>
+            </>
           )}
           {analysis && (
             <>
@@ -102,7 +109,18 @@ export default function AnalysisPage() {
         </div>
       </div>
 
-      <AnalysisProgressStepper steps={sse.steps} progress={sse.progress} isLoading={sse.isLoading} />
+      {/* 단계별 분석 모드 */}
+      {analysisMode === 'step' && !analysis && (
+        <AnalysisStepRunner
+          projectId={projectId}
+          onComplete={fetchExisting}
+        />
+      )}
+
+      {/* 기존 1회 분석 모드 */}
+      {analysisMode === 'legacy' && (
+        <AnalysisProgressStepper steps={sse.steps} progress={sse.progress} isLoading={sse.isLoading} />
+      )}
 
       {sse.error && (
         <Card className="border-destructive">
