@@ -233,6 +233,20 @@ export const priceProposals = aiprowriterSchema.table('price_proposals', {
   index('price_proposals_project_id_idx').on(table.projectId),
 ]);
 
+// ─── Proposal Versions (버전 관리) ──────────────────────────
+
+export const proposalVersions = aiprowriterSchema.table('proposal_versions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  versionNumber: integer('version_number').notNull(),
+  label: text('label').notNull(),
+  snapshot: jsonb('snapshot').$type<Record<string, unknown>>().notNull(),
+  createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('proposal_versions_project_id_idx').on(table.projectId),
+]);
+
 // ─── Templates ──────────────────────────────────────────────
 
 export const templates = aiprowriterSchema.table('templates', {
