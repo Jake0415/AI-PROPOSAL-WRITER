@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ProgressTracker } from '@/components/project/progress-tracker';
 import { CoachingButton } from '@/components/guide/coaching-button';
+import { AiChatPanel } from '@/components/project/ai-chat-panel';
 import { useSSE } from '@/lib/hooks/use-sse';
 import {
   Accordion,
@@ -160,6 +161,7 @@ export default function SectionsPage() {
           )}
           {sections.length > 0 && (
             <>
+              <AiChatPanel projectId={projectId} userId="" topic="section-editing" />
               <CoachingButton projectId={projectId} stepKey="outline" />
               <Button
                 onClick={() => router.push(`/projects/${projectId}/output`)}

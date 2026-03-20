@@ -315,6 +315,58 @@ export const auditLogs = aiprowriterSchema.table('audit_logs', {
   index('audit_logs_created_at_idx').on(table.createdAt),
 ]);
 
+// ─── Conversations (대화형 AI 코칭) ─────────────────────────
+
+export type ConversationTopic =
+  | 'rfp-analysis' | 'direction-coaching' | 'strategy-coaching'
+  | 'outline-coaching' | 'section-editing' | 'review-coaching'
+  | 'price-coaching' | 'general';
+
+export const conversations = aiprowriterSchema.table('conversations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  topic: text('topic').$type<ConversationTopic>().notNull(),
+  stageContext: jsonb('stage_context').$type<Record<string, unknown>>().notNull().default({}),
+  status: text('status').$type<'active' | 'archived'>().notNull().default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  lastMessageAt: timestamp('last_message_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('conversations_project_id_idx').on(table.projectId),
+  index('conversations_user_id_idx').on(table.userId),
+  index('conversations_status_idx').on(table.status),
+]);
+
+export const messages = aiprowriterSchema.table('messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  conversationId: uuid('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+  role: text('role').$type<'user' | 'assistant' | 'system'>().notNull(),
+  content: text('content').notNull(),
+  toolCalls: jsonb('tool_calls').$type<Record<string, unknown> | null>(),
+  tokenUsage: jsonb('token_usage').$type<{ prompt: number; completion: number } | null>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('messages_conversation_id_idx').on(table.conversationId),
+]);
+
+export const llmCallLogs = aiprowriterSchema.table('llm_call_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
+  conversationId: uuid('conversation_id').references(() => conversations.id, { onDelete: 'set null' }),
+  service: text('service').notNull(),
+  provider: text('provider').$type<'claude' | 'gpt'>().notNull(),
+  model: text('model').notNull(),
+  promptTokens: integer('prompt_tokens').notNull().default(0),
+  completionTokens: integer('completion_tokens').notNull().default(0),
+  totalCost: text('total_cost').notNull().default('0'),
+  latencyMs: integer('latency_ms').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('llm_call_logs_project_id_idx').on(table.projectId),
+  index('llm_call_logs_created_at_idx').on(table.createdAt),
+  index('llm_call_logs_provider_idx').on(table.provider),
+]);
+
 // ─── Prompt Templates (프롬프트 관리) ────────────────────────
 
 export type PromptCategory = 'analysis' | 'generation' | 'review' | 'coaching' | 'price';
@@ -416,6 +468,21 @@ export const outputFilesRelations = relations(outputFiles, ({ one }) => ({
 
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   user: one(profiles, { fields: [auditLogs.userId], references: [profiles.id] }),
+}));
+
+export const conversationsRelations = relations(conversations, ({ one, many }) => ({
+  project: one(projects, { fields: [conversations.projectId], references: [projects.id] }),
+  user: one(profiles, { fields: [conversations.userId], references: [profiles.id] }),
+  messages: many(messages),
+}));
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  conversation: one(conversations, { fields: [messages.conversationId], references: [conversations.id] }),
+}));
+
+export const llmCallLogsRelations = relations(llmCallLogs, ({ one }) => ({
+  project: one(projects, { fields: [llmCallLogs.projectId], references: [projects.id] }),
+  conversation: one(conversations, { fields: [llmCallLogs.conversationId], references: [conversations.id] }),
 }));
 
 export const promptTemplatesRelations = relations(promptTemplates, ({ many }) => ({

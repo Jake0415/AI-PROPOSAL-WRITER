@@ -9,6 +9,7 @@ import { ProgressTracker } from '@/components/project/progress-tracker';
 import { useSSE } from '@/lib/hooks/use-sse';
 import type { DirectionCandidate } from '@/lib/ai/types';
 import { CoachingButton } from '@/components/guide/coaching-button';
+import { AiChatPanel } from '@/components/project/ai-chat-panel';
 import { ArrowRight, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -82,7 +83,10 @@ export default function DirectionPage() {
         </div>
         <div className="flex items-center gap-2">
           {candidates.length > 0 && (
-            <CoachingButton projectId={projectId} stepKey="direction" />
+            <>
+              <AiChatPanel projectId={projectId} userId="" topic="direction-coaching" />
+              <CoachingButton projectId={projectId} stepKey="direction" />
+            </>
           )}
           {selectedIndex >= 0 && (
             <Button onClick={confirmSelection} disabled={isConfirming}>

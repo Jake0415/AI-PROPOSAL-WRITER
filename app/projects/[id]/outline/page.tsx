@@ -8,6 +8,7 @@ import { ProgressTracker } from '@/components/project/progress-tracker';
 import { useSSE } from '@/lib/hooks/use-sse';
 import type { OutlineSection } from '@/lib/ai/types';
 import { CoachingButton } from '@/components/guide/coaching-button';
+import { AiChatPanel } from '@/components/project/ai-chat-panel';
 import { OutlineEvalMapping } from '@/components/project/outline-eval-mapping';
 import { OutlineTemplateSelector } from '@/components/project/outline-template-selector';
 import { ArrowRight, GripVertical, List, Sparkles } from 'lucide-react';
@@ -163,6 +164,7 @@ export default function OutlinePage() {
                 <Sparkles className="mr-1 h-3 w-3" />
                 재생성
               </Button>
+              <AiChatPanel projectId={projectId} userId="" topic="outline-coaching" />
               <CoachingButton projectId={projectId} stepKey="outline" />
               <Button onClick={() => router.push(`/projects/${projectId}/sections`)}>
                 다음: 내용 생성

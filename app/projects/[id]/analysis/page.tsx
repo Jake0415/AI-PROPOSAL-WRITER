@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { AnalysisProgressStepper } from '@/components/project/analysis-progress-stepper';
 import { CoachingButton } from '@/components/guide/coaching-button';
+import { AiChatPanel } from '@/components/project/ai-chat-panel';
 import { useSSE } from '@/lib/hooks/use-sse';
 import type { RfpAnalysisResult } from '@/lib/ai/types';
 import { REQUIREMENT_CATEGORY_LABELS } from '@/lib/ai/types';
@@ -90,6 +91,7 @@ export default function AnalysisPage() {
           )}
           {analysis && (
             <>
+              <AiChatPanel projectId={projectId} userId="" topic="rfp-analysis" />
               <CoachingButton projectId={projectId} stepKey="analysis" />
               <Button onClick={() => router.push(`/projects/${projectId}/direction`)}>
                 다음: 방향성 설정

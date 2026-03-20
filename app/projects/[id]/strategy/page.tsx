@@ -9,6 +9,7 @@ import { ProgressTracker } from '@/components/project/progress-tracker';
 import { useSSE } from '@/lib/hooks/use-sse';
 import type { ProposalStrategyResult } from '@/lib/ai/types';
 import { CoachingButton } from '@/components/guide/coaching-button';
+import { AiChatPanel } from '@/components/project/ai-chat-panel';
 import { ArrowRight, Target, MessageSquare, Sparkles } from 'lucide-react';
 
 export default function StrategyPage() {
@@ -44,7 +45,10 @@ export default function StrategyPage() {
         </div>
         <div className="flex items-center gap-2">
           {strategy && (
-            <CoachingButton projectId={projectId} stepKey="strategy" />
+            <>
+              <AiChatPanel projectId={projectId} userId="" topic="strategy-coaching" />
+              <CoachingButton projectId={projectId} stepKey="strategy" />
+            </>
           )}
           {strategy && (
             <Button onClick={() => router.push(`/projects/${projectId}/outline`)}>
