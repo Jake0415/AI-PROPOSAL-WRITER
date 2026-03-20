@@ -121,91 +121,95 @@ export default function UploadPage() {
         </p>
       </div>
 
-      {/* 드래그앤드롭 영역 */}
-      <Card
-        className={`border-2 border-dashed transition-colors ${
-          isDragging ? 'border-primary bg-primary/5' : 'border-border'
-        }`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <CardHeader className="text-center py-16">
-          <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <CardTitle>파일을 드래그하거나 클릭하여 업로드</CardTitle>
-          <CardDescription>PDF, DOCX 형식 지원 (최대 50MB)</CardDescription>
-          <div className="mt-4">
-            <label htmlFor="file-upload">
-              <Button variant="outline" asChild>
-                <span>파일 선택</span>
-              </Button>
-            </label>
-            <input
-              id="file-upload"
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.docx"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-          </div>
-        </CardHeader>
-      </Card>
-
-      {/* 선택된 파일 정보 */}
-      {file && (
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-4">
-            <FileText className="h-8 w-8 text-primary shrink-0" />
-            <div className="flex-1 min-w-0">
-              <CardTitle className="text-base truncate">{file.name}</CardTitle>
-              <CardDescription>
-                {(file.size / 1024 / 1024).toFixed(2)} MB
-              </CardDescription>
+      {/* 드래그앤드롭 영역 (업로드 중 숨김) */}
+      {!isUploading && (
+        <Card
+          className={`border-2 border-dashed transition-colors ${
+            isDragging ? 'border-primary bg-primary/5' : 'border-border'
+          }`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <CardHeader className="text-center py-16">
+            <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <CardTitle>파일을 드래그하거나 클릭하여 업로드</CardTitle>
+            <CardDescription>PDF, DOCX 형식 지원 (최대 50MB)</CardDescription>
+            <div className="mt-4">
+              <label htmlFor="file-upload">
+                <Button variant="outline" asChild>
+                  <span>파일 선택</span>
+                </Button>
+              </label>
+              <input
+                id="file-upload"
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.docx"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
             </div>
-            <Button onClick={handleUpload} disabled={isUploading}>
-              {isUploading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  업로드 중...
-                </>
-              ) : (
-                '업로드 및 분석 시작'
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleCancelFile}
-              disabled={isUploading}
-              aria-label="파일 선택 취소"
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </CardHeader>
         </Card>
       )}
 
-      {/* 업로드 진행률 (인라인) */}
-      {isUploading && (
+      {/* 선택된 파일 정보 + 인라인 Progress */}
+      {file && (
         <Card>
           <CardHeader className="space-y-3">
-            <div className="flex items-center gap-3">
-              {uploadStatus === 'processing' ? (
-                <Loader2 className="h-5 w-5 text-primary animate-spin shrink-0" />
-              ) : (
-                <FileText className="h-5 w-5 text-primary shrink-0" />
+            <div className="flex items-center gap-4">
+              <FileText className="h-8 w-8 text-primary shrink-0" />
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-base truncate">{file.name}</CardTitle>
+                <CardDescription>
+                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                </CardDescription>
+              </div>
+              <Button onClick={handleUpload} disabled={isUploading}>
+                {isUploading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    업로드 중...
+                  </>
+                ) : (
+                  '업로드 및 분석 시작'
+                )}
+              </Button>
+              {!isUploading && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCancelFile}
+                  aria-label="파일 선택 취소"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               )}
-              <CardTitle className="text-sm font-medium">
-                {uploadStatus === 'processing'
-                  ? '서버에서 텍스트 추출 및 저장 중...'
-                  : `업로드 중... ${uploadProgress}%`}
-              </CardTitle>
             </div>
-            <Progress
-              value={uploadStatus === 'processing' ? 100 : uploadProgress}
-              className="h-2"
-            />
+
+            {/* 인라인 Progress */}
+            {isUploading && (
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  {uploadStatus === 'processing' ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      서버에서 텍스트 추출 및 저장 중...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 text-primary" />
+                      업로드 중... {uploadProgress}%
+                    </>
+                  )}
+                </div>
+                <Progress
+                  value={uploadStatus === 'processing' ? 100 : uploadProgress}
+                  className="h-2"
+                />
+              </div>
+            )}
           </CardHeader>
         </Card>
       )}

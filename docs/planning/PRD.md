@@ -795,7 +795,7 @@ interface SSEEvent {
 ### 8.3 핵심 UI 컴포넌트
 
 - **StepNavigation**: 프로젝트 내 10단계 진행 표시 (좌측 사이드바)
-- **FileUploader**: 드래그앤드롭 파일 업로드 영역
+- **FileUploader**: 드래그앤드롭 파일 업로드 영역 (인라인 Progress, 업로드 중 드래그 영역 숨김)
 - **AnalysisCard**: 분석 결과 항목 카드
 - **AnalysisTabs**: 6개 탭 분석 결과 뷰 (사업개요/요구사항/평가기준/추적성/키워드/원문)
 - **DirectionSelector**: 방향성 후보 비교 카드
