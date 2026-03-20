@@ -1,6 +1,6 @@
 # Task 033: 백업/복구 (PostgreSQL Docker)
 
-## 상태: 대기
+## 상태: 진행중
 
 ## Phase: 6 - 운영 및 배포
 
