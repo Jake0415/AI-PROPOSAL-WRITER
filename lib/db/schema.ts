@@ -23,15 +23,20 @@ import type {
 } from '@/lib/ai/types';
 
 // bytea 커스텀 타입 (PostgreSQL 바이너리 데이터)
-const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+const bytea = customType<{ data: Buffer; driverData: string }>({
   dataType() {
     return 'bytea';
   },
-  toDriver(value: Buffer): Buffer {
-    return value;
+  toDriver(value: Buffer): string {
+    return '\\x' + value.toString('hex');
   },
-  fromDriver(value: Buffer): Buffer {
-    return Buffer.from(value);
+  fromDriver(value: unknown): Buffer {
+    if (Buffer.isBuffer(value)) return value;
+    if (typeof value === 'string') {
+      const hex = value.startsWith('\\x') ? value.slice(2) : value;
+      return Buffer.from(hex, 'hex');
+    }
+    return Buffer.from(value as Buffer);
   },
 });
 
