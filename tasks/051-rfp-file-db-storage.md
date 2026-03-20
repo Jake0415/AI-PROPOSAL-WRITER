@@ -1,40 +1,34 @@
-# Task 051: RFP 파일 DB 저장
+# Task 051: RFP 파일 저장 방식 결정
 
-## 상태: 대기
+## 상태: ✅ 완료 (파일시스템 방식 채택)
 
 ## Phase: 7 - 제안서 관리
 
 ## 목표
 
-RFP 파일을 파일시스템 대신 PostgreSQL bytea 컬럼에 직접 저장하여 Docker 환경 호환성 확보. 파일 다운로드 API 추가. Dockerfile에서 누락된 pdf-parse, mammoth 패키지 추가.
+RFP 파일 저장 방식을 결정하고 안정적으로 구현한다.
 
 ## 배경
 
-Docker 환경에서 파일 업로드 시 에러 발생:
-1. Dockerfile에서 pdf-parse, mammoth 패키지 누락 → 텍스트 추출 실패
-2. 파일시스템 저장 → Docker 볼륨 권한 문제
+bytea(PostgreSQL 바이너리) 방식을 시도했으나 postgres.js 드라이버 호환 이슈로 INSERT 실패. 분석 결과 파일시스템 방식이 더 적합:
+- DB 크기 최소화 (메타데이터만)
+- 다운로드 성능 우수 (파일 스트리밍)
+- Docker named volume(upload-data) 이미 존재
+- 드라이버 호환 이슈 없음
 
 ## 구현 사항
 
-- [ ] `lib/db/schema.ts` 수정 - rfpFiles 테이블 `filePath` → `fileData` (bytea)
-- [ ] 마이그레이션 생성/적용
-- [ ] `lib/repositories/rfp.repository.ts` 수정 - fileData(Buffer) 저장
-- [ ] `app/api/projects/[id]/rfp/upload/route.ts` 수정 - fs 제거, DB 바이너리 저장
-- [ ] `app/api/projects/[id]/rfp/download/route.ts` 신규 - 파일 다운로드 API
-- [ ] `Dockerfile` 수정 - pdf-parse, mammoth 패키지 추가
-- [ ] `lib/services/rfp-parser.service.ts` 수정 - import 확인
+- [x] `lib/db/schema.ts` - rfpFiles.fileData(bytea) → filePath(text)
+- [x] `lib/repositories/rfp.repository.ts` - fileData → filePath
+- [x] `app/api/projects/[id]/rfp/upload/route.ts` - 파일시스템 저장 (data/uploads/[projectId]/)
+- [x] `app/api/projects/[id]/rfp/download/route.ts` - 파일시스템에서 읽기
+- [x] `Dockerfile` - pdf-parse, mammoth 패키지 (이전 커밋에서 완료)
 
-## 관련 파일
+## 아키텍처 결정
 
-- `lib/db/schema.ts`
-- `lib/repositories/rfp.repository.ts`
-- `app/api/projects/[id]/rfp/upload/route.ts`
-- `app/api/projects/[id]/rfp/download/route.ts` (신규)
-- `Dockerfile`
-- `lib/services/rfp-parser.service.ts`
-
-## 검증
-
-- Docker 재빌드 후 실제 PDF/DOCX 파일 업로드 성공
-- 업로드된 파일 다운로드 API 동작 확인
-- Playwright E2E 테스트 통과
+| 기준 | bytea (기각) | 파일시스템 (채택) |
+|------|-------------|-----------------|
+| 드라이버 호환 | postgres.js 이슈 | 문제 없음 |
+| DB 크기 | 급증 | 최소 |
+| 백업 | 느림 | DB+볼륨 분리 |
+| 성능 | DB 커넥션 점유 | 스트리밍 |

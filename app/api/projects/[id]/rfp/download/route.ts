@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { readFile } from 'fs/promises';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
 import { handleApiError } from '@/lib/errors/api-handler';
 
@@ -21,7 +22,9 @@ export async function GET(
       ? 'application/pdf'
       : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
-    return new NextResponse(new Uint8Array(rfpFile.fileData), {
+    const fileBuffer = await readFile(rfpFile.filePath);
+
+    return new NextResponse(new Uint8Array(fileBuffer), {
       headers: {
         'Content-Type': mimeType,
         'Content-Disposition': `attachment; filename="${encodeURIComponent(rfpFile.fileName)}"`,

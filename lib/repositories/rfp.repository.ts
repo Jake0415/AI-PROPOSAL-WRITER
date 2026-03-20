@@ -16,7 +16,7 @@ export const rfpRepository = {
     projectId: string;
     fileName: string;
     fileType: 'pdf' | 'docx';
-    fileData: Buffer;
+    filePath: string;
     fileSize: number;
     rawText: string;
   }) {

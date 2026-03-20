@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { writeFile, mkdir } from 'fs/promises';
+import path from 'path';
 import { parseRfpFile } from '@/lib/services/rfp-parser.service';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
 import { projectRepository } from '@/lib/repositories/project.repository';
@@ -78,12 +80,18 @@ export async function POST(
     // 텍스트 추출
     const parsed = await parseRfpFile(buffer, fileType);
 
-    // DB에 바이너리 + 텍스트 저장
+    // 파일시스템에 저장
+    const uploadDir = path.join(process.cwd(), 'data', 'uploads', projectId);
+    await mkdir(uploadDir, { recursive: true });
+    const filePath = path.join(uploadDir, safeName);
+    await writeFile(filePath, buffer);
+
+    // DB에 메타데이터 + 텍스트 저장
     const rfpFile = await rfpRepository.createFile({
       projectId,
       fileName: safeName,
       fileType,
-      fileData: buffer,
+      filePath,
       fileSize: file.size,
       rawText: parsed.text,
     });

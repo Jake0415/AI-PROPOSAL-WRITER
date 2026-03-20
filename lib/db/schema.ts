@@ -109,7 +109,7 @@ export const rfpFiles = aiprowriterSchema.table('rfp_files', {
   projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   fileName: text('file_name').notNull(),
   fileType: text('file_type').$type<'pdf' | 'docx'>().notNull(),
-  fileData: bytea('file_data').notNull(),
+  filePath: text('file_path').notNull(),
   fileSize: integer('file_size').notNull(),
   rawText: text('raw_text').notNull().default(''),
   uploadedAt: timestamp('uploaded_at', { withTimezone: true }).notNull().defaultNow(),
