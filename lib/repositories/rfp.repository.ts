@@ -43,6 +43,13 @@ export const rfpRepository = {
     return results[0];
   },
 
+  async updateGptFileId(projectId: string, gptFileId: string) {
+    const db = getDb();
+    await db.update(rfpFiles)
+      .set({ gptFileId })
+      .where(eq(rfpFiles.projectId, projectId));
+  },
+
   async createAnalysis(data: {
     projectId: string;
     overview: { projectName: string; client: string; budget: string; duration: string; summary: string; purpose?: string };
