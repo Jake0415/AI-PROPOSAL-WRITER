@@ -23,7 +23,16 @@
       "mcp__slack__slack_get_channel_history",
       "mcp__slack__slack_get_thread_replies",
       "mcp__claude_ai_Gmail",
-      "mcp__shrimp-task-manager"
+      "mcp__shrimp-task-manager",
+      "Bash(PLAYWRIGHT_BASE_URL=http://localhost:3100 npx playwright test)",
+      "Bash(PLAYWRIGHT_BASE_URL=http://localhost:3100 npx playwright test e2e/project-crud.spec.ts:18 --reporter=line)",
+      "Bash(PLAYWRIGHT_BASE_URL=http://localhost:3100 npx playwright test --workers=1 --reporter=line)",
+      "Bash(PLAYWRIGHT_BASE_URL=http://localhost:3100 npx playwright test e2e/project-crud.spec.ts e2e/rbac.spec.ts --reporter=line)",
+      "Bash(PLAYWRIGHT_BASE_URL=http://localhost:3100 npx playwright test e2e/auth.spec.ts e2e/project-crud.spec.ts --workers=1 --reporter=line)",
+      "Bash(PLAYWRIGHT_BASE_URL=http://localhost:3100 npx playwright test e2e/dashboard-management.spec.ts --reporter=line)",
+      "Bash(PLAYWRIGHT_BASE_URL=http://localhost:3100 npx playwright test e2e/upload-flow.spec.ts --reporter=line)",
+      "Bash(PLAYWRIGHT_BASE_URL=http://localhost:3100 npx playwright test --reporter=line)",
+      "Bash(PLAYWRIGHT_BASE_URL=http://localhost:3100 npx playwright test e2e/upload-flow.spec.ts --workers=1 --reporter=line)"
     ],
     "deny": [
       "Bash(rm -rf /:*)",
@@ -38,6 +47,9 @@
       "Bash(apt install:*)",
       "Bash(brew install:*)",
       "Bash(npx shadcn:*)"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
     ]
   },
   "enableAllProjectMcpServers": true,

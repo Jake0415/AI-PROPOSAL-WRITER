@@ -1,6 +1,5 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { eq } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
 import * as schema from '../lib/db/schema';
@@ -47,17 +46,6 @@ async function seed() {
   console.log('시드 데이터 생성 시작...\n');
 
   for (const user of SEED_USERS) {
-    // 중복 확인
-    const existing = await db
-      .select({ id: schema.profiles.id })
-      .from(schema.profiles)
-      .where(eq(schema.profiles.loginId, user.loginId));
-
-    if (existing.length > 0) {
-      console.log(`⏭️  ${user.loginId} (${user.role}) - 이미 존재, 건너뜀`);
-      continue;
-    }
-
     const passwordHash = await bcrypt.hash(user.password, SALT_ROUNDS);
 
     await db.insert(schema.profiles).values({
@@ -68,14 +56,23 @@ async function seed() {
       phone: user.phone,
       department: user.department,
       role: user.role,
+    }).onConflictDoUpdate({
+      target: schema.profiles.loginId,
+      set: {
+        name: user.name,
+        phone: user.phone,
+        department: user.department,
+        role: user.role,
+        updatedAt: new Date(),
+      },
     });
 
-    console.log(`✅ ${user.loginId} (${user.role}) - 생성 완료`);
+    console.log(`✅ ${user.loginId} (${user.role}) - UPSERT 완료`);
   }
 
   console.log('\n시드 완료!');
   console.log('─────────────────────────────────────');
-  console.log('최고관리자: superadmin / admin1234');
+  console.log('최고관리자: yhk71261@gmail.com / @Dnflwlq01');
   console.log('관리자:     admin / admin1234');
   console.log('테스트:     testuser / test1234');
   console.log('─────────────────────────────────────');

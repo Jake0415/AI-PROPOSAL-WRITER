@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Upload, FileText, Loader2 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Upload, FileText, Loader2, X } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function UploadPage() {
   const params = useParams();
@@ -14,6 +16,9 @@ export default function UploadPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState<'uploading' | 'processing' | ''>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -30,6 +35,8 @@ export default function UploadPage() {
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile && isValidFile(droppedFile)) {
       setFile(droppedFile);
+    } else if (droppedFile) {
+      toast.error('PDF 또는 DOCX 파일만 업로드할 수 있습니다');
     }
   }, []);
 
@@ -40,6 +47,14 @@ export default function UploadPage() {
     }
   }, []);
 
+  function handleCancelFile() {
+    setFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    toast.info('파일 선택이 취소되었습니다');
+  }
+
   function isValidFile(f: File): boolean {
     const validTypes = [
       'application/pdf',
@@ -48,27 +63,53 @@ export default function UploadPage() {
     return validTypes.includes(f.type);
   }
 
-  async function handleUpload() {
+  function handleUpload() {
     if (!file) return;
     setIsUploading(true);
+    setUploadProgress(0);
+    setUploadStatus('uploading');
 
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
+    const formData = new FormData();
+    formData.append('file', file);
 
-      const res = await fetch(`/api/projects/${projectId}/rfp/upload`, {
-        method: 'POST',
-        body: formData,
-      });
+    const xhr = new XMLHttpRequest();
 
-      if (res.ok) {
-        router.push(`/projects/${projectId}/analysis`);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        setUploadProgress(Math.round((e.loaded / e.total) * 100));
       }
-    } catch {
-      // 에러 처리
-    } finally {
+    };
+
+    xhr.upload.onload = () => {
+      setUploadStatus('processing');
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        toast.success('RFP 파일이 업로드되었습니다');
+        setIsUploading(false);
+        setUploadStatus('');
+        router.push(`/projects/${projectId}/analysis`);
+      } else {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          toast.error(data.error?.message || '업로드에 실패했습니다');
+        } catch {
+          toast.error('업로드에 실패했습니다');
+        }
+        setIsUploading(false);
+        setUploadStatus('');
+      }
+    };
+
+    xhr.onerror = () => {
+      toast.error('네트워크 오류가 발생했습니다');
       setIsUploading(false);
-    }
+      setUploadStatus('');
+    };
+
+    xhr.open('POST', `/api/projects/${projectId}/rfp/upload`);
+    xhr.send(formData);
   }
 
   return (
@@ -101,6 +142,7 @@ export default function UploadPage() {
             </label>
             <input
               id="file-upload"
+              ref={fileInputRef}
               type="file"
               accept=".pdf,.docx"
               className="hidden"
@@ -131,6 +173,39 @@ export default function UploadPage() {
                 '업로드 및 분석 시작'
               )}
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleCancelFile}
+              disabled={isUploading}
+              aria-label="파일 선택 취소"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </CardHeader>
+        </Card>
+      )}
+
+      {/* 업로드 진행률 (인라인) */}
+      {isUploading && (
+        <Card>
+          <CardHeader className="space-y-3">
+            <div className="flex items-center gap-3">
+              {uploadStatus === 'processing' ? (
+                <Loader2 className="h-5 w-5 text-primary animate-spin shrink-0" />
+              ) : (
+                <FileText className="h-5 w-5 text-primary shrink-0" />
+              )}
+              <CardTitle className="text-sm font-medium">
+                {uploadStatus === 'processing'
+                  ? '서버에서 텍스트 추출 및 저장 중...'
+                  : `업로드 중... ${uploadProgress}%`}
+              </CardTitle>
+            </div>
+            <Progress
+              value={uploadStatus === 'processing' ? 100 : uploadProgress}
+              className="h-2"
+            />
           </CardHeader>
         </Card>
       )}

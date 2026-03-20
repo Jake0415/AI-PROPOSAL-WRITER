@@ -3,7 +3,8 @@ import postgres from 'postgres';
 import * as schema from './schema';
 
 // 지연 초기화 (환경변수가 없을 때 빌드 타임 에러 방지)
-let _db: ReturnType<typeof drizzle> | null = null;
+type Database = ReturnType<typeof drizzle<typeof schema>>;
+let _db: Database | null = null;
 
 export function getDb() {
   if (!_db) {

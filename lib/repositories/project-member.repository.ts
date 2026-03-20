@@ -37,6 +37,23 @@ export const projectMemberRepository = {
       .where(eq(projectMembers.projectId, projectId));
   },
 
+  async getMembersWithProfile(projectId: string) {
+    const db = getDb();
+    return db.query.projectMembers.findMany({
+      where: eq(projectMembers.projectId, projectId),
+      with: {
+        user: {
+          columns: {
+            id: true,
+            name: true,
+            department: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+  },
+
   async getMemberByUser(projectId: string, userId: string) {
     const db = getDb();
     const results = await db

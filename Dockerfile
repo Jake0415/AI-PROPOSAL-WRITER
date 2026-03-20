@@ -4,7 +4,7 @@ FROM node:20-alpine AS base
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # 빌드
 FROM base AS builder
@@ -38,12 +38,8 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# standalone 빌드에서 누락되는 서버 런타임 패키지 보완
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/bcryptjs ./node_modules/bcryptjs
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/jose ./node_modules/jose
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/postgres ./node_modules/postgres
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/uuid ./node_modules/uuid
+# standalone 빌드에서 누락되는 서버 런타임 패키지 전체 복사
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 # 데이터 디렉토리 생성
 RUN mkdir -p data/uploads data/outputs data/templates && \

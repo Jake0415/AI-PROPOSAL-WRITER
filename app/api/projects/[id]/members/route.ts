@@ -13,7 +13,7 @@ export async function GET(
     if (auth instanceof NextResponse) return auth;
 
     const { id: projectId } = await params;
-    const members = await projectMemberRepository.getMembers(projectId);
+    const members = await projectMemberRepository.getMembersWithProfile(projectId);
     return NextResponse.json({ success: true, data: members });
   } catch (err) {
     return handleApiError(err);

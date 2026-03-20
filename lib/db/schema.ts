@@ -1,4 +1,4 @@
-import { pgSchema, text, integer, boolean, uuid, timestamp, jsonb, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgSchema, text, integer, boolean, uuid, timestamp, jsonb, index, uniqueIndex, customType } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import type {
   StructuredRequirement,
@@ -21,6 +21,19 @@ import type {
   PriceSummary,
   PriceCompetitiveness,
 } from '@/lib/ai/types';
+
+// bytea 커스텀 타입 (PostgreSQL 바이너리 데이터)
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return 'bytea';
+  },
+  toDriver(value: Buffer): Buffer {
+    return value;
+  },
+  fromDriver(value: Buffer): Buffer {
+    return Buffer.from(value);
+  },
+});
 
 // aiprowriter 전용 스키마 (다른 프로젝트와 분리)
 export const aiprowriterSchema = pgSchema('aiprowriter');
@@ -91,7 +104,7 @@ export const rfpFiles = aiprowriterSchema.table('rfp_files', {
   projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   fileName: text('file_name').notNull(),
   fileType: text('file_type').$type<'pdf' | 'docx'>().notNull(),
-  filePath: text('file_path').notNull(),
+  fileData: bytea('file_data').notNull(),
   fileSize: integer('file_size').notNull(),
   rawText: text('raw_text').notNull().default(''),
   uploadedAt: timestamp('uploaded_at', { withTimezone: true }).notNull().defaultNow(),

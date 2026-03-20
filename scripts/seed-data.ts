@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import * as schema from '../lib/db/schema';
 import { DEFAULT_PROMPTS } from '../lib/ai/prompts/defaults';
@@ -26,7 +26,7 @@ async function seedData() {
     eq(schema.projects.id, PROJECT_ID)
   );
 
-  // ─── 프롬프트 템플릿 시드 (항상 실행, 중복 무시) ──────────
+  // ─── 프롬프트 템플릿 시드 (UPSERT: 변경분 자동 반영) ──────────
   for (const def of Object.values(DEFAULT_PROMPTS)) {
     await db.insert(schema.promptTemplates).values({
       slug: def.slug,
@@ -36,14 +36,24 @@ async function seedData() {
       systemPrompt: def.systemPrompt,
       userPromptTemplate: '',
       maxTokens: def.maxTokens,
-    }).onConflictDoNothing();
+    }).onConflictDoUpdate({
+      target: schema.promptTemplates.slug,
+      set: {
+        name: def.name,
+        description: def.description,
+        category: def.category,
+        systemPrompt: def.systemPrompt,
+        maxTokens: def.maxTokens,
+        updatedAt: new Date(),
+      },
+    });
   }
-  console.log('✅ 프롬프트 템플릿 9개 생성 (또는 이미 존재)');
+  console.log('✅ 프롬프트 템플릿 UPSERT 완료');
 
   if (existingProject.length > 0) {
-    console.log('⏭️  데모 프로젝트 이미 존재, 건너뜀');
-    await client.end();
-    return;
+    // 기존 데모 데이터 삭제 후 재생성 (CASCADE로 연관 데이터도 삭제)
+    await db.delete(schema.projects).where(eq(schema.projects.id, PROJECT_ID));
+    console.log('♻️  기존 데모 프로젝트 삭제 (재생성)');
   }
 
   await db.insert(schema.projects).values({

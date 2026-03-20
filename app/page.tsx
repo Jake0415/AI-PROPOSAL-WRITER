@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -10,14 +10,10 @@ import {
 } from '@/components/ui/card';
 import { Plus, FileText, Clock, CheckCircle2 } from 'lucide-react';
 import { ProjectCard } from '@/components/project/project-card';
-
-interface Project {
-  id: string;
-  title: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { ProjectFilterBar } from '@/components/project/project-filter-bar';
+import { ProjectTable } from '@/components/project/project-table';
+import { MemberManageDialog } from '@/components/project/member-manage-dialog';
+import type { EnhancedProject } from '@/components/project/types';
 
 const STATUS_LABELS: Record<string, string> = {
   uploaded: 'RFP 업로드됨',
@@ -26,29 +22,61 @@ const STATUS_LABELS: Record<string, string> = {
   strategy_set: '전략 수립됨',
   outline_ready: '목차 구성됨',
   generating: '내용 생성 중',
+  sections_ready: '섹션 완료',
+  reviewing: '검토 중',
   completed: '완료',
 };
 
 export default function DashboardPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<EnhancedProject[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
+  const [meta, setMeta] = useState({ page: 1, total: 0, totalPages: 1 });
+  const [canManageMembers, setCanManageMembers] = useState(false);
+  const [memberDialogProjectId, setMemberDialogProjectId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  async function fetchProjects() {
+  const fetchProjects = useCallback(async () => {
     try {
-      const res = await fetch('/api/projects');
+      const params = new URLSearchParams();
+      if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
+      if (searchQuery) params.set('search', searchQuery);
+      params.set('limit', '50');
+
+      const res = await fetch(`/api/projects?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setProjects(data.data ?? []);
+        if (data.meta) setMeta(data.meta);
       }
     } catch {
-      // API가 아직 없을 수 있음
+      // API 오류 무시
     }
-  }
+  }, [statusFilter, searchQuery]);
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
+
+  // 현재 사용자 권한 확인 (proposal_pm 이상이면 담당자 관리 가능)
+  useEffect(() => {
+    async function checkRole() {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          const role = data.data?.role;
+          const pmRoles = ['super_admin', 'admin', 'proposal_pm'];
+          setCanManageMembers(pmRoles.includes(role));
+        }
+      } catch {
+        // 무시
+      }
+    }
+    checkRole();
+  }, []);
 
   async function handleCreate() {
     if (!newTitle.trim()) return;
@@ -94,7 +122,7 @@ export default function DashboardPage() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <div className="px-6 pb-4">
-            <div className="text-2xl font-bold">{projects.length}</div>
+            <div className="text-2xl font-bold">{meta.total}</div>
           </div>
         </Card>
         <Card>
@@ -142,6 +170,16 @@ export default function DashboardPage() {
         </Card>
       )}
 
+      {/* 필터/검색 바 */}
+      <ProjectFilterBar
+        statusFilter={statusFilter}
+        searchQuery={searchQuery}
+        onStatusChange={setStatusFilter}
+        onSearchChange={setSearchQuery}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+      />
+
       {/* 프로젝트 목록 */}
       {projects.length === 0 ? (
         <Card className="border-dashed">
@@ -153,6 +191,11 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
         </Card>
+      ) : viewMode === 'table' ? (
+        <ProjectTable
+          projects={projects}
+          onManageMembers={canManageMembers ? (id) => setMemberDialogProjectId(id) : undefined}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects.map((project) => (
@@ -160,9 +203,22 @@ export default function DashboardPage() {
               key={project.id}
               project={project}
               statusLabel={STATUS_LABELS[project.status] ?? project.status}
+              onManageMembers={canManageMembers ? (id) => setMemberDialogProjectId(id) : undefined}
             />
           ))}
         </div>
+      )}
+
+      {/* 담당자 관리 Dialog */}
+      {memberDialogProjectId && (
+        <MemberManageDialog
+          projectId={memberDialogProjectId}
+          open={!!memberDialogProjectId}
+          onOpenChange={(open) => {
+            if (!open) setMemberDialogProjectId(null);
+          }}
+          onMembersChanged={fetchProjects}
+        />
       )}
     </div>
   );

@@ -55,7 +55,7 @@ test.describe('전체 시나리오 브라우징', () => {
     await page.waitForLoadState('networkidle');
     await expect(page.locator('body')).not.toContainText('Application error');
     // 목차 섹션이 표시되어야 함
-    await expect(page.getByText('사업 이해 및 추진전략')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('사업 이해 및 추진전략').first()).toBeVisible({ timeout: 10000 });
   });
 
   test('프로젝트 - 섹션 내용 페이지', async ({ page }) => {

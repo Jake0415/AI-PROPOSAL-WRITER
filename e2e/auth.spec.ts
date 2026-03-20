@@ -48,7 +48,7 @@ test.describe('인증 플로우', () => {
     await page.goto('/admin/users');
     await expect(page).toHaveURL(/\/admin\/users/);
     // 사용자 목록 테이블이 보여야 함
-    await expect(page.getByText('superadmin')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('yhk71261@gmail.com')).toBeVisible({ timeout: 5000 });
   });
 
   test('일반 사용자 로그인 후 로그아웃', async ({ page }) => {

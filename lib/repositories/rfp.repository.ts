@@ -16,13 +16,22 @@ export const rfpRepository = {
     projectId: string;
     fileName: string;
     fileType: 'pdf' | 'docx';
-    filePath: string;
+    fileData: Buffer;
     fileSize: number;
     rawText: string;
   }) {
     const db = getDb();
     const [file] = await db.insert(rfpFiles).values(data).returning();
     return file;
+  },
+
+  async getFileById(id: string) {
+    const db = getDb();
+    const results = await db
+      .select()
+      .from(rfpFiles)
+      .where(eq(rfpFiles.id, id));
+    return results[0];
   },
 
   async getFileByProjectId(projectId: string) {

@@ -54,7 +54,7 @@ export async function middleware(request: NextRequest) {
     const isAiEndpoint = pathname.includes('/generate') || pathname.includes('/analyze');
     const limit = isAiEndpoint
       ? checkRateLimit(`ai:${ip}`, { maxRequests: 10, windowMs: 60_000 })
-      : checkRateLimit(`api:${ip}`, { maxRequests: 100, windowMs: 60_000 });
+      : checkRateLimit(`api:${ip}`, { maxRequests: 300, windowMs: 60_000 });
 
     if (!limit.allowed) {
       logger.warn('Rate limit exceeded', { requestId, ip, pathname });

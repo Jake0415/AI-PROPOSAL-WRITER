@@ -1,11 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { projectRepository } from '@/lib/repositories/project.repository';
-import { createProjectSchema } from '@/lib/validators/project.schema';
+import { createProjectSchema, projectFilterSchema } from '@/lib/validators/project.schema';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const projects = await projectRepository.findAll();
-    return NextResponse.json({ success: true, data: projects });
+    const { searchParams } = request.nextUrl;
+    const filterInput = {
+      status: searchParams.get('status') || undefined,
+      search: searchParams.get('search') || undefined,
+      page: searchParams.get('page') || undefined,
+      limit: searchParams.get('limit') || undefined,
+    };
+
+    const parsed = projectFilterSchema.safeParse(filterInput);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.issues[0].message } },
+        { status: 400 },
+      );
+    }
+
+    const result = await projectRepository.findAllWithDetails(parsed.data);
+    return NextResponse.json({ success: true, data: result.data, meta: result.meta });
   } catch {
     return NextResponse.json(
       { success: false, error: { code: 'FETCH_ERROR', message: '프로젝트 목록을 불러올 수 없습니다' } },
