@@ -320,6 +320,26 @@ export const auditLogs = aiprowriterSchema.table('audit_logs', {
   index('audit_logs_created_at_idx').on(table.createdAt),
 ]);
 
+// ─── Analysis Steps (단계별 RFP 분석) ───────────────────────
+
+export type AnalysisStepStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+export const analysisSteps = aiprowriterSchema.table('analysis_steps', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  stepNumber: integer('step_number').notNull(),
+  slug: text('slug').notNull(),
+  status: text('status').$type<AnalysisStepStatus>().notNull().default('pending'),
+  result: jsonb('result').$type<Record<string, unknown> | null>(),
+  promptUsed: text('prompt_used'),
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('analysis_steps_project_id_idx').on(table.projectId),
+  index('analysis_steps_project_step_idx').on(table.projectId, table.stepNumber),
+]);
+
 // ─── Conversations (대화형 AI 코칭) ─────────────────────────
 
 export type ConversationTopic =
@@ -473,6 +493,10 @@ export const outputFilesRelations = relations(outputFiles, ({ one }) => ({
 
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   user: one(profiles, { fields: [auditLogs.userId], references: [profiles.id] }),
+}));
+
+export const analysisStepsRelations = relations(analysisSteps, ({ one }) => ({
+  project: one(projects, { fields: [analysisSteps.projectId], references: [projects.id] }),
 }));
 
 export const conversationsRelations = relations(conversations, ({ one, many }) => ({

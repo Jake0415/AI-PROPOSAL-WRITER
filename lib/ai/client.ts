@@ -47,3 +47,22 @@ export async function* generateStream(options: GenerateOptions): AsyncGenerator<
   const provider = getProvider();
   yield* provider.generateStream(options);
 }
+
+// 파일 업로드 (GPT file_search용)
+export async function uploadFile(buffer: Buffer, fileName: string): Promise<string | null> {
+  const provider = getProvider();
+  if (provider.uploadFile) {
+    return provider.uploadFile(buffer, fileName);
+  }
+  return null;
+}
+
+// 파일 첨부 생성 (GPT Responses API)
+export async function generateWithFile(options: GenerateOptions & { fileId: string }): Promise<string> {
+  const provider = getProvider();
+  if (provider.generateWithFile) {
+    return provider.generateWithFile(options);
+  }
+  // 폴백: 일반 텍스트 생성
+  return provider.generateText(options);
+}

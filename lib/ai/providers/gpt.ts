@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 import type { AiProviderInterface, GenerateOptions } from './types';
 
 const DEFAULT_MODEL = 'gpt-4o';
@@ -25,7 +25,6 @@ export const gptProvider: AiProviderInterface = {
         { role: 'system', content: options.systemPrompt },
         { role: 'user', content: options.userPrompt },
       ],
-      // JSON 출력 안정성 향상 (프롬프트에서 JSON 출력을 지시하는 경우)
       response_format: { type: 'json_object' },
     });
 
@@ -50,5 +49,50 @@ export const gptProvider: AiProviderInterface = {
         yield delta;
       }
     }
+  },
+
+  async uploadFile(buffer: Buffer, fileName: string): Promise<string> {
+    const client = getClient();
+    const file = await client.files.create({
+      file: await toFile(buffer, fileName),
+      purpose: 'assistants',
+    });
+    return file.id;
+  },
+
+  async generateWithFile(options: GenerateOptions & { fileId: string }): Promise<string> {
+    const client = getClient();
+    const response = await client.responses.create({
+      model: options.model ?? process.env.AI_MODEL_GPT ?? DEFAULT_MODEL,
+      input: [
+        { role: 'system', content: options.systemPrompt },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'input_file',
+              file_id: options.fileId,
+            },
+            {
+              type: 'input_text',
+              text: options.userPrompt,
+            },
+          ],
+        },
+      ],
+      max_output_tokens: options.maxTokens ?? DEFAULT_MAX_TOKENS,
+    });
+
+    // Responses API 출력에서 텍스트 추출
+    for (const item of response.output) {
+      if (item.type === 'message') {
+        for (const content of item.content) {
+          if (content.type === 'output_text') {
+            return content.text;
+          }
+        }
+      }
+    }
+    return '';
   },
 };

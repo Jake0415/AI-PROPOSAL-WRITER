@@ -12,4 +12,6 @@ export interface GenerateOptions {
 export interface AiProviderInterface {
   generateText(options: GenerateOptions): Promise<string>;
   generateStream(options: GenerateOptions): AsyncGenerator<string>;
+  uploadFile?(buffer: Buffer, fileName: string): Promise<string>;
+  generateWithFile?(options: GenerateOptions & { fileId: string }): Promise<string>;
 }
