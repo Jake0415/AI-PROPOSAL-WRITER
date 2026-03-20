@@ -14,6 +14,8 @@ interface AiSettingsData {
   gptModel: string;
   hasClaudeKey: boolean;
   hasGptKey: boolean;
+  claudeKeyMasked: string;
+  gptKeyMasked: string;
 }
 
 const PROVIDERS = [
@@ -38,6 +40,9 @@ const PROVIDERS = [
 export default function SettingsPage() {
   const [settings, setSettings] = useState<AiSettingsData | null>(null);
   const [saving, setSaving] = useState(false);
+  const [claudeKey, setClaudeKey] = useState('');
+  const [gptKey, setGptKey] = useState('');
+  const [keySaveMsg, setKeySaveMsg] = useState('');
   const [testing, setTesting] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{
     provider: string;
@@ -94,6 +99,36 @@ export default function SettingsPage() {
       }
     } catch {
       // 저장 실패
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveApiKeys() {
+    setSaving(true);
+    setKeySaveMsg('');
+    try {
+      const body: Record<string, string> = {};
+      if (claudeKey.trim()) body.claudeApiKey = claudeKey.trim();
+      if (gptKey.trim()) body.gptApiKey = gptKey.trim();
+      if (Object.keys(body).length === 0) { setSaving(false); return; }
+
+      const res = await fetch('/api/settings/ai', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setKeySaveMsg('API 키가 저장되었습니다');
+        setClaudeKey('');
+        setGptKey('');
+        fetchSettings();
+      } else {
+        setKeySaveMsg(data.error?.message || '저장 실패');
+      }
+    } catch {
+      setKeySaveMsg('네트워크 오류');
     } finally {
       setSaving(false);
     }
@@ -242,6 +277,55 @@ export default function SettingsPage() {
               </div>
             );
           })}
+        </div>
+
+        <Separator />
+
+        {/* API 키 관리 */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">API 키 관리</h2>
+          <p className="text-xs text-muted-foreground">
+            API 키는 AES-256-GCM으로 암호화되어 DB에 저장됩니다.
+          </p>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Claude API Key</label>
+              {settings.claudeKeyMasked && (
+                <span className="ml-2 text-xs text-muted-foreground">현재: {settings.claudeKeyMasked}</span>
+              )}
+              <input
+                type="password"
+                value={claudeKey}
+                onChange={e => setClaudeKey(e.target.value)}
+                placeholder="sk-ant-..."
+                className="mt-1 w-full h-9 rounded-md border bg-background px-3 text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">OpenAI API Key</label>
+              {settings.gptKeyMasked && (
+                <span className="ml-2 text-xs text-muted-foreground">현재: {settings.gptKeyMasked}</span>
+              )}
+              <input
+                type="password"
+                value={gptKey}
+                onChange={e => setGptKey(e.target.value)}
+                placeholder="sk-proj-..."
+                className="mt-1 w-full h-9 rounded-md border bg-background px-3 text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Button size="sm" onClick={saveApiKeys} disabled={saving || (!claudeKey.trim() && !gptKey.trim())}>
+                {saving ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}
+                키 저장
+              </Button>
+              {keySaveMsg && (
+                <span className={`text-xs ${keySaveMsg.includes('저장') ? 'text-green-600' : 'text-destructive'}`}>
+                  {keySaveMsg}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
         <Separator />

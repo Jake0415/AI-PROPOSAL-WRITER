@@ -1,6 +1,7 @@
 import { claudeProvider } from './providers/claude';
 import { gptProvider } from './providers/gpt';
 import type { AiProvider, AiProviderInterface, GenerateOptions } from './providers/types';
+import { settingsRepository } from '@/lib/repositories/settings.repository';
 
 // 타입 재내보내기 (기존 import 호환)
 export type { GenerateOptions } from './providers/types';
@@ -46,6 +47,17 @@ export async function generateText(options: GenerateOptions): Promise<string> {
 export async function* generateStream(options: GenerateOptions): AsyncGenerator<string> {
   const provider = getProvider();
   yield* provider.generateStream(options);
+}
+
+// DB에서 API 키 로드 (우선순위: DB > 환경변수)
+export async function getApiKey(provider: AiProvider): Promise<string | undefined> {
+  try {
+    const dbKey = await settingsRepository.getDecryptedApiKey(provider);
+    if (dbKey) return dbKey;
+  } catch { /* DB 접근 실패 시 환경변수 폴백 */ }
+  return provider === 'claude'
+    ? process.env.ANTHROPIC_API_KEY
+    : process.env.OPENAI_API_KEY;
 }
 
 // 파일 업로드 (GPT file_search용)

@@ -267,6 +267,8 @@ export const aiSettings = aiprowriterSchema.table('ai_settings', {
   provider: text('provider').$type<AiProviderType>().notNull().default('claude'),
   claudeModel: text('claude_model').notNull().default('claude-sonnet-4-6'),
   gptModel: text('gpt_model').notNull().default('gpt-4o'),
+  claudeApiKey: text('claude_api_key'), // AES-256-GCM 암호화 저장
+  gptApiKey: text('gpt_api_key'),       // AES-256-GCM 암호화 저장
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
