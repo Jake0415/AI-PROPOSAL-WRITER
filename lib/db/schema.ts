@@ -112,7 +112,8 @@ export const rfpFiles = aiprowriterSchema.table('rfp_files', {
   filePath: text('file_path').notNull(),
   fileSize: integer('file_size').notNull(),
   rawText: text('raw_text').notNull().default(''),
-  gptFileId: text('gpt_file_id'),  // GPT Files API에 업로드된 file_id
+  gptFileId: text('gpt_file_id'),
+  vectorStatus: text('vector_status').$type<'none' | 'processing' | 'completed' | 'failed'>().notNull().default('none'),
   uploadedAt: timestamp('uploaded_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index('rfp_files_project_id_idx').on(table.projectId),

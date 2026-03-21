@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readFile } from 'fs/promises';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
-import { uploadFile } from '@/lib/ai/client';
+import { registerVectors } from '@/lib/vector/rag.service';
 
-// POST - GPT에 PDF 파일 업로드 (벡터 등록)
+// POST - Qdrant 벡터 등록 (텍스트 + 이미지)
 export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -19,33 +18,33 @@ export async function POST(
       );
     }
 
-    // 이미 등록된 경우 기존 file_id 반환
-    if (rfpFile.gptFileId) {
+    if (rfpFile.vectorStatus === 'completed') {
       return NextResponse.json({
         success: true,
-        data: { fileId: rfpFile.gptFileId, status: 'already_registered' },
+        data: { status: 'already_registered' },
       });
     }
 
-    // 파일 읽기 + GPT 업로드
-    const buffer = await readFile(rfpFile.filePath);
-    const fileId = await uploadFile(buffer, rfpFile.fileName);
+    await rfpRepository.updateVectorStatus(projectId, 'processing');
 
-    if (!fileId) {
-      return NextResponse.json(
-        { success: false, error: { code: 'UPLOAD_FAILED', message: 'GPT 파일 업로드에 실패했습니다. API 키를 확인하세요.' } },
-        { status: 500 },
-      );
-    }
+    const result = await registerVectors(
+      projectId,
+      rfpFile.rawText,
+      rfpFile.filePath,
+    );
 
-    // DB에 file_id 저장
-    await rfpRepository.updateGptFileId(projectId, fileId);
+    await rfpRepository.updateVectorStatus(projectId, 'completed');
 
     return NextResponse.json({
       success: true,
-      data: { fileId, status: 'registered' },
+      data: {
+        status: 'registered',
+        chunkCount: result.chunkCount,
+        pageCount: result.pageCount,
+      },
     });
   } catch (err) {
+    await rfpRepository.updateVectorStatus(projectId, 'failed').catch(() => {});
     const message = err instanceof Error ? err.message : '벡터 등록에 실패했습니다';
     return NextResponse.json(
       { success: false, error: { code: 'VECTOR_ERROR', message } },
@@ -54,7 +53,7 @@ export async function POST(
   }
 }
 
-// DELETE - 벡터 등록 해제 (재등록 시 사용)
+// DELETE - 벡터 등록 해제
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -62,7 +61,9 @@ export async function DELETE(
   const { id: projectId } = await params;
 
   try {
-    await rfpRepository.updateGptFileId(projectId, '');
+    const { deleteCollection, getCollectionName } = await import('@/lib/vector/qdrant-client');
+    await deleteCollection(getCollectionName(projectId));
+    await rfpRepository.updateVectorStatus(projectId, 'none');
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json(

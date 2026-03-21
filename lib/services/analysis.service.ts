@@ -1,5 +1,4 @@
-import { readFile } from 'fs/promises';
-import { generateText, generateStream, uploadFile, generateWithFile, getActiveProvider } from '@/lib/ai/client';
+import { generateText, generateStream, getActiveProvider } from '@/lib/ai/client';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
 import { projectRepository } from '@/lib/repositories/project.repository';
 import { analysisStepRepository } from '@/lib/repositories/analysis-step.repository';
@@ -142,32 +141,61 @@ export async function runAnalysisStep(
     // 이전 단계 결과 수집
     const previousResults = await collectPreviousResults(projectId, stepNumber);
 
-    // GPT 파일 업로드 시도
-    let fileId: string | null = null;
-    if (getActiveProvider() === 'gpt' && rfpFile.filePath) {
-      try {
-        const buffer = await readFile(rfpFile.filePath);
-        fileId = await uploadFile(buffer, rfpFile.fileName);
-      } catch { /* 폴백: 텍스트 기반 */ }
-    }
-
     // 프롬프트 로드
     const prompt = await getPrompt(stepDef.slug);
 
-    // LLM 호출
-    let resultText: string;
-    const userPrompt = prompt.buildUserPrompt(
-      rfpFile.rawText,
-      ...Object.values(previousResults).map(v => JSON.stringify(v)),
-    );
+    // RAG 검색 시도 (Qdrant 벡터 등록된 경우)
+    let ragContext = '';
+    let visionImages: Array<{ base64: string }> = [];
 
-    if (fileId) {
-      resultText = await generateWithFile({
-        systemPrompt: prompt.systemPrompt,
-        userPrompt,
-        maxTokens: prompt.maxTokens,
-        fileId,
+    if (rfpFile.vectorStatus === 'completed') {
+      try {
+        const { ragSearch } = await import('@/lib/vector/rag.service');
+        const ragResult = await ragSearch(projectId, stepDef.label);
+        ragContext = ragResult.chunks.map(c => c.text).join('\n\n');
+        visionImages = ragResult.pageImages;
+      } catch { /* RAG 실패 시 텍스트 폴백 */ }
+    }
+
+    // 프롬프트 구성
+    const previousJson = Object.values(previousResults).map(v => JSON.stringify(v)).join('\n');
+    let userPrompt: string;
+
+    if (ragContext) {
+      // RAG 모드: 검색된 청크만 전달 (rawText 없음)
+      userPrompt = prompt.buildUserPrompt(ragContext, previousJson);
+    } else {
+      // 폴백: rawText 축소 전달
+      userPrompt = prompt.buildUserPrompt(rfpFile.rawText.slice(0, 20000), previousJson);
+    }
+
+    // LLM 호출 (Vision 이미지 포함 가능)
+    let resultText: string;
+
+    if (visionImages.length > 0 && getActiveProvider() === 'gpt') {
+      // GPT + Vision: 이미지 첨부
+      const { getApiKey } = await import('@/lib/ai/client');
+      const OpenAI = (await import('openai')).default;
+      const apiKey = await getApiKey('gpt');
+      const client = new OpenAI({ apiKey });
+
+      const imageContent = visionImages.map(img => ({
+        type: 'image_url' as const,
+        image_url: { url: `data:image/png;base64,${img.base64}` },
+      }));
+
+      const response = await client.chat.completions.create({
+        model: process.env.AI_MODEL_GPT ?? 'gpt-4o',
+        max_tokens: prompt.maxTokens,
+        messages: [
+          { role: 'system', content: prompt.systemPrompt },
+          { role: 'user', content: [
+            { type: 'text', text: userPrompt },
+            ...imageContent,
+          ]},
+        ],
       });
+      resultText = response.choices[0]?.message?.content ?? '';
     } else {
       resultText = await generateText({
         systemPrompt: prompt.systemPrompt,

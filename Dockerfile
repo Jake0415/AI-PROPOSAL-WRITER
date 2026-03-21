@@ -30,6 +30,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# PDF→이미지 변환용 graphicsmagick + ghostscript
+RUN apk add --no-cache graphicsmagick ghostscript
+
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 

@@ -17,10 +17,10 @@ RFP(제안요청서)에서 사업 개요를 정확히 파악합니다.
 반드시 순수 JSON으로만 응답하세요.`;
 
 export function buildStep1Prompt(rfpText: string): string {
-  return `다음 RFP에서 사업 개요를 추출하세요.
+  return `다음 RFP 관련 내용에서 사업 개요를 추출하세요.
 
-## RFP 원문
-${rfpText.slice(0, 60000)}
+## RFP 관련 내용
+${rfpText.slice(0, 30000)}
 
 ## 출력 JSON
 {
@@ -49,7 +49,7 @@ export function buildStep2Prompt(rfpText: string, overview: string): string {
 ${overview}
 
 ## RFP 원문
-${rfpText.slice(0, 60000)}
+${rfpText.slice(0, 30000)}
 
 ## 출력 JSON
 {
@@ -82,7 +82,7 @@ export function buildStep3Prompt(rfpText: string, overview: string, evalItems: s
 - 평가항목: ${evalItems}
 
 ## RFP 원문
-${rfpText.slice(0, 60000)}
+${rfpText.slice(0, 30000)}
 
 ## 출력 JSON
 {
@@ -138,7 +138,7 @@ export function buildStep5Prompt(rfpText: string, overview: string): string {
 ${overview}
 
 ## RFP 원문
-${rfpText.slice(0, 60000)}
+${rfpText.slice(0, 30000)}
 
 ## 출력 JSON
 {

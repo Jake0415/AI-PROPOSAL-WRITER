@@ -43,6 +43,13 @@ export const rfpRepository = {
     return results[0];
   },
 
+  async updateVectorStatus(projectId: string, status: 'none' | 'processing' | 'completed' | 'failed') {
+    const db = getDb();
+    await db.update(rfpFiles)
+      .set({ vectorStatus: status })
+      .where(eq(rfpFiles.projectId, projectId));
+  },
+
   async updateGptFileId(projectId: string, gptFileId: string) {
     const db = getDb();
     await db.update(rfpFiles)

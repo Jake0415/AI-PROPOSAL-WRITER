@@ -129,6 +129,7 @@ export async function GET(
         fileName: rfpFile.fileName,
         fileSize: rfpFile.fileSize,
         gptFileId: rfpFile.gptFileId ?? null,
+        vectorStatus: rfpFile.vectorStatus ?? 'none',
       },
     });
   } catch {

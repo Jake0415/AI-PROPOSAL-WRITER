@@ -27,6 +27,7 @@ interface RfpFileInfo {
   fileName: string;
   fileSize: number;
   gptFileId: string | null;
+  vectorStatus: 'none' | 'processing' | 'completed' | 'failed';
 }
 
 export default function AnalysisPage() {
@@ -130,7 +131,7 @@ export default function AnalysisPage() {
   const mappedMandatory = new Set(analysis?.traceabilityMatrix?.map(m => m.requirementId) ?? []);
   const unmappedMandatory = analysis?.requirements?.filter(r => r.mandatory && !mappedMandatory.has(r.id)) ?? [];
 
-  const isVectorRegistered = !!rfpFile?.gptFileId;
+  const isVectorRegistered = rfpFile?.vectorStatus === 'completed';
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
