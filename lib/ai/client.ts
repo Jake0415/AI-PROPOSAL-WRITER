@@ -6,8 +6,10 @@ import { settingsRepository } from '@/lib/repositories/settings.repository';
 // 타입 재내보내기 (기존 import 호환)
 export type { GenerateOptions } from './providers/types';
 
+import { DEFAULT_CLAUDE_MODEL } from '@/lib/ai/models';
+
 // 기본값 (하위 호환)
-export const AI_MODEL = 'claude-sonnet-4-6' as const;
+export const AI_MODEL = DEFAULT_CLAUDE_MODEL;
 export const MAX_TOKENS = 4096;
 
 // 프로바이더 레지스트리
@@ -31,20 +33,35 @@ export function getActiveProvider(): AiProvider {
   return 'claude';
 }
 
+/** DB에서 활성 프로바이더를 로드하여 런타임에 반영 */
+export async function ensureProviderFromDb(): Promise<AiProvider> {
+  if (_runtimeProvider) return _runtimeProvider;
+  try {
+    const settings = await settingsRepository.getAiSettings();
+    if (settings?.provider) {
+      _runtimeProvider = settings.provider as AiProvider;
+      return _runtimeProvider;
+    }
+  } catch { /* DB 접근 실패 시 폴백 */ }
+  return getActiveProvider();
+}
+
 // 프로바이더 인스턴스 조회
 function getProvider(providerName?: AiProvider): AiProviderInterface {
   const name = providerName ?? getActiveProvider();
   return providers[name];
 }
 
-// 통합 텍스트 생성 (기존 시그니처 유지)
+// 통합 텍스트 생성 (DB 프로바이더 자동 로드)
 export async function generateText(options: GenerateOptions): Promise<string> {
+  await ensureProviderFromDb();
   const provider = getProvider();
   return provider.generateText(options);
 }
 
-// 통합 스트리밍 생성 (기존 시그니처 유지)
+// 통합 스트리밍 생성 (DB 프로바이더 자동 로드)
 export async function* generateStream(options: GenerateOptions): AsyncGenerator<string> {
+  await ensureProviderFromDb();
   const provider = getProvider();
   yield* provider.generateStream(options);
 }

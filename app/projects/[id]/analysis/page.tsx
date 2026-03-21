@@ -7,15 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { AnalysisProgressStepper } from '@/components/project/analysis-progress-stepper';
 import { CoachingButton } from '@/components/guide/coaching-button';
 import { AiChatPanel } from '@/components/project/ai-chat-panel';
 import { AnalysisStepRunner } from '@/components/project/analysis-step-runner';
-import { useSSE } from '@/lib/hooks/use-sse';
 import type { RfpAnalysisResult } from '@/lib/ai/types';
 import { REQUIREMENT_CATEGORY_LABELS } from '@/lib/ai/types';
 import type { RequirementCategory } from '@/lib/ai/types';
-import { Loader2, ArrowRight, FileText, Upload, Link2, RefreshCw } from 'lucide-react';
+import { ArrowRight, FileText } from 'lucide-react';
 
 const PRIORITY_STYLES = {
   high: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
@@ -37,34 +35,13 @@ export default function AnalysisPage() {
 
   const [analysis, setAnalysis] = useState<RfpAnalysisResult | null>(null);
   const [rfpFile, setRfpFile] = useState<RfpFileInfo | null>(null);
-  const [vectorRegistering, setVectorRegistering] = useState(false);
-  const [vectorError, setVectorError] = useState('');
-  const [isLegacyMode, setIsLegacyMode] = useState(false);
-  const sse = useSSE<RfpAnalysisResult>();
 
   const fetchExisting = useCallback(async () => {
-    try {
-      const [analysisRes, fileRes] = await Promise.all([
-        fetch(`/api/projects/${projectId}/rfp/analysis`),
-        fetch(`/api/projects/${projectId}/rfp/analysis`).then(() =>
-          fetch(`/api/projects/${projectId}/rfp/download`, { method: 'HEAD' }).catch(() => null)
-        ),
-      ]);
-
-      if (analysisRes.ok) {
-        const data = await analysisRes.json();
-        if (data.success) setAnalysis(data.data);
-      }
-    } catch { /* 무시 */ }
-
-    // RFP 파일 정보 로드
     try {
       const res = await fetch(`/api/projects/${projectId}/rfp/analysis`);
       if (res.ok) {
         const data = await res.json();
-        if (data.success && data.data) {
-          // 파일 정보는 별도 API에서 가져와야 하지만, 간단히 DB 조회
-        }
+        if (data.success) setAnalysis(data.data);
       }
     } catch { /* 무시 */ }
   }, [projectId]);
@@ -84,40 +61,6 @@ export default function AnalysisPage() {
     fetchExisting();
   }, [projectId, fetchExisting]);
 
-  useEffect(() => {
-    if (sse.result) setAnalysis(sse.result);
-  }, [sse.result]);
-
-  function startLegacyAnalysis() {
-    setIsLegacyMode(true);
-    sse.execute(`/api/projects/${projectId}/rfp/analyze`);
-  }
-
-  async function registerVector() {
-    setVectorRegistering(true);
-    setVectorError('');
-    try {
-      const res = await fetch(`/api/projects/${projectId}/rfp/vector-register`, { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        setRfpFile(prev => prev ? { ...prev, gptFileId: data.data.fileId } : null);
-      } else {
-        setVectorError(data.error?.message || '벡터 등록 실패');
-      }
-    } catch {
-      setVectorError('네트워크 오류');
-    } finally {
-      setVectorRegistering(false);
-    }
-  }
-
-  async function reRegisterVector() {
-    // 기존 등록 해제 후 재등록
-    await fetch(`/api/projects/${projectId}/rfp/vector-register`, { method: 'DELETE' });
-    setRfpFile(prev => prev ? { ...prev, gptFileId: null } : null);
-    registerVector();
-  }
-
   // 요구사항 카테고리별 그룹핑
   const reqByCategory = analysis?.requirements?.reduce((acc, req) => {
     const cat = req.category as RequirementCategory;
@@ -130,8 +73,6 @@ export default function AnalysisPage() {
   const totalReqCount = analysis?.requirements?.length ?? 0;
   const mappedMandatory = new Set(analysis?.traceabilityMatrix?.map(m => m.requirementId) ?? []);
   const unmappedMandatory = analysis?.requirements?.filter(r => r.mandatory && !mappedMandatory.has(r.id)) ?? [];
-
-  const isVectorRegistered = rfpFile?.vectorStatus === 'completed';
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -173,76 +114,16 @@ export default function AnalysisPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                variant="ghost" size="sm"
-                onClick={() => router.push(`/projects/${projectId}/upload`)}
-              >
-                <Upload className="mr-1 h-3 w-3" />
-                파일 변경
-              </Button>
-            </div>
-          </div>
-
-          <Separator className="my-3" />
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Link2 className="h-4 w-4 text-muted-foreground" />
-              {isVectorRegistered ? (
-                <Badge variant="default" className="text-xs">벡터 등록 완료</Badge>
-              ) : (
-                <Badge variant="secondary" className="text-xs">벡터 미등록</Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {!isVectorRegistered ? (
-                <Button size="sm" onClick={registerVector} disabled={vectorRegistering || !rfpFile}>
-                  {vectorRegistering ? (
-                    <><Loader2 className="mr-1 h-3 w-3 animate-spin" />등록 중...</>
-                  ) : (
-                    <><Link2 className="mr-1 h-3 w-3" />벡터 등록</>
-                  )}
-                </Button>
-              ) : (
-                <>
-                  <Button variant="ghost" size="sm" onClick={reRegisterVector} disabled={vectorRegistering}>
-                    <RefreshCw className="mr-1 h-3 w-3" />
-                    재등록
-                  </Button>
-                  <Button size="sm" onClick={startLegacyAnalysis} disabled={sse.isLoading}>
-                    {sse.isLoading ? (
-                      <><Loader2 className="mr-1 h-3 w-3 animate-spin" />분석 중...</>
-                    ) : (
-                      '전체 분석'
-                    )}
-                  </Button>
-                </>
+              {rfpFile?.vectorStatus === 'completed' && (
+                <Badge variant="default" className="text-xs bg-green-600">벡터 등록 완료</Badge>
               )}
             </div>
           </div>
-
-          {vectorError && (
-            <p className="text-xs text-destructive mt-2">{vectorError}</p>
-          )}
         </CardHeader>
       </Card>
 
-      {/* 기존 전체 분석 모드 Progress */}
-      {isLegacyMode && (
-        <AnalysisProgressStepper steps={sse.steps} progress={sse.progress} isLoading={sse.isLoading} />
-      )}
-
-      {sse.error && (
-        <Card className="border-destructive">
-          <CardHeader>
-            <CardTitle className="text-destructive">오류</CardTitle>
-            <CardDescription>{sse.error}</CardDescription>
-          </CardHeader>
-        </Card>
-      )}
-
-      {/* 7단계 스테퍼 (항상 표시) */}
-      {!analysis && !isLegacyMode && (
+      {/* 7단계 스테퍼 */}
+      {!analysis && (
         <AnalysisStepRunner
           projectId={projectId}
           onComplete={fetchExisting}
@@ -280,7 +161,7 @@ export default function AnalysisPage() {
               <Card className="mt-4">
                 <CardHeader><CardTitle className="text-lg">핵심 키워드</CardTitle></CardHeader>
                 <div className="px-6 pb-6 flex flex-wrap gap-2">
-                  {analysis.keywords.map((kw, i) => <Badge key={i} variant="outline">{kw}</Badge>)}
+                  {(analysis.keywords ?? []).map((kw, i) => <Badge key={i} variant="outline">{kw}</Badge>)}
                 </div>
               </Card>
             )}
@@ -292,7 +173,7 @@ export default function AnalysisPage() {
                 <Card>
                   <CardHeader><CardTitle className="text-lg">배점 전략</CardTitle></CardHeader>
                   <div className="px-6 pb-6 space-y-3">
-                    {analysis.strategyPoints.map((sp, i) => (
+                    {(analysis.strategyPoints ?? []).map((sp, i) => (
                       <div key={i} className="rounded-lg border p-3">
                         <div className="flex items-center gap-2 mb-2">
                           <Badge className={PRIORITY_STYLES[sp.priority]}>
@@ -302,7 +183,7 @@ export default function AnalysisPage() {
                         </div>
                         <p className="text-xs text-muted-foreground">{sp.strategy}</p>
                         <div className="flex gap-1 mt-2">
-                          {sp.evalIds.map(id => <Badge key={id} variant="outline" className="text-[10px]">{id}</Badge>)}
+                          {(sp.evalIds ?? []).map(id => <Badge key={id} variant="outline" className="text-[10px]">{id}</Badge>)}
                         </div>
                       </div>
                     ))}
@@ -384,7 +265,7 @@ export default function AnalysisPage() {
                     <table className="w-full text-sm">
                       <thead><tr className="border-b text-left"><th className="py-2">요구사항 ID</th><th className="py-2">평가항목 ID</th><th className="py-2">권장 챕터</th></tr></thead>
                       <tbody>
-                        {analysis.traceabilityMatrix.map((m, i) => (
+                        {(analysis.traceabilityMatrix ?? []).map((m, i) => (
                           <tr key={i} className="border-b last:border-0">
                             <td className="py-2 font-mono text-xs">{m.requirementId}</td>
                             <td className="py-2 font-mono text-xs">{m.evaluationItemId}</td>
@@ -413,7 +294,7 @@ export default function AnalysisPage() {
               <div className="px-6 pb-6">
                 {analysis.qualifications?.length > 0 ? (
                   <div className="space-y-2">
-                    {analysis.qualifications.map((q, i) => (
+                    {(analysis.qualifications ?? []).map((q, i) => (
                       <div key={i} className="flex items-start gap-3 py-2 border-b last:border-0 text-sm">
                         <Badge variant="outline" className="text-[10px] shrink-0">
                           {q.type === 'eligibility' ? '자격' : q.type === 'deadline' ? '납기' : q.type === 'warranty' ? '보증' : q.type === 'legal' ? '법규' : '하도급'}
@@ -437,7 +318,7 @@ export default function AnalysisPage() {
               <div className="px-6 pb-6">
                 {analysis.recommendedChapters?.length > 0 ? (
                   <div className="space-y-3">
-                    {analysis.recommendedChapters.map((ch, i) => (
+                    {(analysis.recommendedChapters ?? []).map((ch, i) => (
                       <div key={i} className="rounded-lg border p-3">
                         <div className="flex items-center justify-between mb-1">
                           <span className="font-medium text-sm">{ch.chapter}</span>
@@ -456,7 +337,7 @@ export default function AnalysisPage() {
                     ))}
                     <Separator />
                     <p className="text-xs text-muted-foreground text-right">
-                      총 약 {analysis.recommendedChapters.reduce((sum, ch) => sum + ch.recommendedPages, 0)}페이지 (A4 기준)
+                      총 약 {(analysis.recommendedChapters ?? []).reduce((sum, ch) => sum + ch.recommendedPages, 0)}페이지 (A4 기준)
                     </p>
                   </div>
                 ) : <p className="text-sm text-muted-foreground">권장 목차가 생성되지 않았습니다.</p>}

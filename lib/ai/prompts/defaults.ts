@@ -1,6 +1,5 @@
 import type { PromptCategory } from '@/lib/db/schema';
 
-import { RFP_ANALYSIS_SYSTEM_PROMPT, buildRfpAnalysisPrompt } from './rfp-analysis';
 import { DIRECTION_SYSTEM_PROMPT, buildDirectionPrompt } from './direction-generation';
 import { STRATEGY_SYSTEM_PROMPT, buildStrategyPrompt } from './strategy-generation';
 import { OUTLINE_SYSTEM_PROMPT, buildOutlinePrompt } from './outline-generation';
@@ -31,15 +30,6 @@ export interface DefaultPromptDef {
 }
 
 export const DEFAULT_PROMPTS: Record<string, DefaultPromptDef> = {
-  'rfp-analysis': {
-    slug: 'rfp-analysis',
-    name: 'RFP 분석',
-    description: 'RFP(제안요청서) 문서를 7단계로 체계적 분석하여 사업개요·평가항목·요구사항·추적성 매트릭스를 추출',
-    category: 'analysis',
-    systemPrompt: RFP_ANALYSIS_SYSTEM_PROMPT,
-    maxTokens: 16384,
-    buildUserPrompt: buildRfpAnalysisPrompt,
-  },
   'direction-generation': {
     slug: 'direction-generation',
     name: '방향성 생성',

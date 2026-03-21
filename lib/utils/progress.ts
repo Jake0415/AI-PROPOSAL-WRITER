@@ -2,6 +2,7 @@ import type { ProjectStatus } from '@/lib/db/schema';
 
 const STATUS_PROGRESS: Record<ProjectStatus, number> = {
   uploaded: 10,
+  vectorized: 15,
   analyzing: 20,
   direction_set: 35,
   strategy_set: 50,

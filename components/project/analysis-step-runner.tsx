@@ -4,7 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Circle, Loader2, AlertCircle, Play, RotateCcw, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckCircle, Circle, Loader2, AlertCircle, Play, RotateCcw, Settings2, ChevronDown, ChevronUp } from 'lucide-react';
+import { StepResultViewer } from './step-result-viewer';
+import { PromptEditDialog } from './prompt-edit-dialog';
 
 interface StepData {
   id: string;
@@ -36,6 +38,8 @@ export function AnalysisStepRunner({ projectId, onComplete }: AnalysisStepRunner
   const [runningStep, setRunningStep] = useState<number | null>(null);
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [promptEditSlug, setPromptEditSlug] = useState<string | null>(null);
+  const [promptEditStep, setPromptEditStep] = useState<number>(0);
 
   const fetchSteps = useCallback(async () => {
     try {
@@ -175,6 +179,21 @@ export function AnalysisStepRunner({ projectId, onComplete }: AnalysisStepRunner
                       <Play className="h-3 w-3" />
                     </Button>
                   )}
+                  {(status === 'completed' || status === 'failed') && (
+                    <Button
+                      variant="ghost" size="icon" className="h-7 w-7"
+                      onClick={() => {
+                        const stepDef = STEP_LABELS.find(s => s.num === num);
+                        if (stepDef) {
+                          setPromptEditSlug(stepDef.slug);
+                          setPromptEditStep(num);
+                        }
+                      }}
+                      title="프롬프트 수정"
+                    >
+                      <Settings2 className="h-3 w-3" />
+                    </Button>
+                  )}
                   {status === 'completed' && (
                     <>
                       <Button
@@ -197,34 +216,30 @@ export function AnalysisStepRunner({ projectId, onComplete }: AnalysisStepRunner
                 </div>
               </div>
 
-              {/* 확장: 결과 JSON 표시 + 편집 */}
+              {/* 확장: Pretty Print / JSON 탭 뷰어 */}
               {isExpanded && result && (
-                <div className="mt-3 space-y-2">
-                  <pre className="text-xs bg-muted rounded-md p-3 max-h-60 overflow-auto whitespace-pre-wrap">
-                    {JSON.stringify(result, null, 2)}
-                  </pre>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline" size="sm"
-                      onClick={() => {
-                        const edited = prompt('JSON 결과를 수정하세요:', JSON.stringify(result, null, 2));
-                        if (edited) {
-                          try {
-                            updateStepResult(num, JSON.parse(edited));
-                          } catch { alert('올바른 JSON을 입력하세요'); }
-                        }
-                      }}
-                    >
-                      <Pencil className="mr-1 h-3 w-3" />
-                      편집
-                    </Button>
-                  </div>
+                <div className="mt-3">
+                  <StepResultViewer
+                    result={result}
+                    onSave={(updated) => updateStepResult(num, updated)}
+                  />
                 </div>
               )}
             </CardHeader>
           </Card>
         );
       })}
+
+      {/* 프롬프트 편집 다이얼로그 */}
+      {promptEditSlug && (
+        <PromptEditDialog
+          open={!!promptEditSlug}
+          onOpenChange={(open) => { if (!open) setPromptEditSlug(null); }}
+          slug={promptEditSlug}
+          stepNumber={promptEditStep}
+          onRerun={() => runStep(promptEditStep)}
+        />
+      )}
     </div>
   );
 }

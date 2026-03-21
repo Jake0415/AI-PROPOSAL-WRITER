@@ -1,4 +1,5 @@
-import { generateText, generateStream, getActiveProvider } from '@/lib/ai/client';
+import { generateText, getActiveProvider, ensureProviderFromDb } from '@/lib/ai/client';
+import { DEFAULT_GPT_MODEL, isGpt5Model } from '@/lib/ai/models';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
 import { projectRepository } from '@/lib/repositories/project.repository';
 import { analysisStepRepository } from '@/lib/repositories/analysis-step.repository';
@@ -11,21 +12,6 @@ import type { SSEProgress } from '@/lib/utils/sse-stream';
 
 type ProgressCallback = (p: SSEProgress) => void;
 
-// ─── 기존 1회 호출 분석 (레거시 호환) ─────────────────────────
-
-const LEGACY_STEPS = [
-  { key: '"overview"', label: '사업 개요 파악', progress: 15 },
-  { key: '"evaluationItems"', label: '평가항목 추출 + 배점 검증', progress: 28 },
-  { key: '"requirements"', label: '요구사항 도출 (7개 카테고리)', progress: 42 },
-  { key: '"traceabilityMatrix"', label: '추적성 매트릭스 생성', progress: 52 },
-  { key: '"qualifications"', label: '자격요건/납기/법규 추출', progress: 60 },
-  { key: '"strategyPoints"', label: '배점 전략 분석', progress: 68 },
-  { key: '"recommendedChapters"', label: '목차 구성 제안', progress: 76 },
-  { key: '"scope"', label: '범위 정의', progress: 82 },
-  { key: '"constraints"', label: '제약사항 추출', progress: 88 },
-  { key: '"keywords"', label: '키워드 추출', progress: 92 },
-];
-
 function parseJson<T>(result: string, fallback: T): T {
   try {
     const jsonMatch = result.match(/\{[\s\S]*\}/);
@@ -35,80 +21,7 @@ function parseJson<T>(result: string, fallback: T): T {
   }
 }
 
-/** 기존 방식: 1회 LLM 호출로 전체 분석 (rfp-analysis 프롬프트) */
-export async function runAnalysis(
-  projectId: string,
-  onProgress?: ProgressCallback,
-): Promise<RfpAnalysisResult> {
-  const stepLabels = LEGACY_STEPS.map((s) => s.label);
-  const totalSteps = LEGACY_STEPS.length;
-
-  await projectRepository.updateStatus(projectId, 'analyzing');
-  onProgress?.({ step: 'RFP 텍스트 로딩', progress: 5, steps: stepLabels, totalSteps, stepIndex: -1 });
-
-  const rfpFile = await rfpRepository.getFileByProjectId(projectId);
-  if (!rfpFile) throw new Error('RFP 파일이 없습니다');
-
-  onProgress?.({ step: '수주 최적화 AI 분석 시작', progress: 10, stepIndex: -1, totalSteps });
-
-  let accumulated = '';
-  let currentStepIdx = -1;
-
-  const prompt = await getPrompt('rfp-analysis');
-  const stream = generateStream({
-    systemPrompt: prompt.systemPrompt,
-    userPrompt: prompt.buildUserPrompt(rfpFile.rawText),
-    maxTokens: prompt.maxTokens,
-  });
-
-  for await (const chunk of stream) {
-    accumulated += chunk;
-    for (let i = currentStepIdx + 1; i < LEGACY_STEPS.length; i++) {
-      if (accumulated.includes(LEGACY_STEPS[i].key)) {
-        currentStepIdx = i;
-        onProgress?.({ step: LEGACY_STEPS[i].label, progress: LEGACY_STEPS[i].progress, stepIndex: i, totalSteps });
-      } else break;
-    }
-  }
-
-  onProgress?.({ step: '분석 결과 파싱', progress: 95, stepIndex: totalSteps - 1, totalSteps });
-
-  const analysisData = parseJson<RfpAnalysisResult>(accumulated, {
-    overview: { projectName: '분석 실패', summary: accumulated.slice(0, 500) },
-    evaluationItems: [], requirements: [], traceabilityMatrix: [],
-    qualifications: [], strategyPoints: [], recommendedChapters: [],
-    scope: { inScope: [], outOfScope: [] },
-    constraints: { technical: [], business: [], timeline: [] },
-    keywords: [],
-  } as unknown as RfpAnalysisResult);
-
-  onProgress?.({ step: 'DB 저장', progress: 97, stepIndex: totalSteps - 1, totalSteps });
-
-  const evalItems = analysisData.evaluationItems ?? [];
-  await rfpRepository.createAnalysis({
-    projectId,
-    overview: analysisData.overview ?? {},
-    requirements: analysisData.requirements ?? [],
-    evaluationCriteria: evalItems.map((item) => ({
-      category: item.category, item: item.item, score: item.score,
-      description: item.criteria ?? item.item,
-    })),
-    evaluationItems: evalItems,
-    traceabilityMatrix: analysisData.traceabilityMatrix ?? [],
-    qualifications: analysisData.qualifications ?? [],
-    strategyPoints: analysisData.strategyPoints ?? [],
-    recommendedChapters: analysisData.recommendedChapters ?? [],
-    scope: analysisData.scope ?? { inScope: [], outOfScope: [] },
-    constraints: analysisData.constraints ?? { technical: [], business: [], timeline: [] },
-    keywords: analysisData.keywords ?? [],
-  });
-
-  await projectRepository.updateStatus(projectId, 'direction_set');
-  onProgress?.({ step: '완료', progress: 100, stepIndex: totalSteps, totalSteps });
-  return analysisData;
-}
-
-// ─── 7단계 체이닝 분석 (신규) ──────────────────────────────
+// ─── 7단계 체이닝 분석 ──────────────────────────────
 
 /** 특정 단계만 실행 (재실행 포함) */
 export async function runAnalysisStep(
@@ -121,6 +34,9 @@ export async function runAnalysisStep(
 
   const rfpFile = await rfpRepository.getFileByProjectId(projectId);
   if (!rfpFile) throw new Error('RFP 파일이 없습니다');
+
+  // DB에서 활성 프로바이더 로드
+  await ensureProviderFromDb();
 
   // 프롬프트 확인 (없으면 자동 생성)
   await ensureStepPrompt(stepDef.slug);
@@ -153,6 +69,15 @@ export async function runAnalysisStep(
         const { ragSearch } = await import('@/lib/vector/rag.service');
         const ragResult = await ragSearch(projectId, stepDef.label);
         ragContext = ragResult.chunks.map(c => c.text).join('\n\n');
+
+        // 이미지 메타데이터가 매칭되면 프롬프트에 설명 추가
+        if (ragResult.imageMatches.length > 0) {
+          const imageDescriptions = ragResult.imageMatches.map(m =>
+            `[Page ${m.pageNumber} 이미지]: ${m.description} (키워드: ${m.keywords.join(', ')})`,
+          ).join('\n');
+          ragContext += '\n\n--- 관련 이미지 설명 ---\n' + imageDescriptions;
+        }
+
         visionImages = ragResult.pageImages;
       } catch { /* RAG 실패 시 텍스트 폴백 */ }
     }
@@ -184,9 +109,12 @@ export async function runAnalysisStep(
         image_url: { url: `data:image/png;base64,${img.base64}` },
       }));
 
+      const visionModel = process.env.AI_MODEL_GPT ?? DEFAULT_GPT_MODEL;
       const response = await client.chat.completions.create({
-        model: process.env.AI_MODEL_GPT ?? 'gpt-4o',
-        max_tokens: prompt.maxTokens,
+        model: visionModel,
+        ...(isGpt5Model(visionModel)
+          ? { max_completion_tokens: prompt.maxTokens }
+          : { max_tokens: prompt.maxTokens }),
         messages: [
           { role: 'system', content: prompt.systemPrompt },
           { role: 'user', content: [

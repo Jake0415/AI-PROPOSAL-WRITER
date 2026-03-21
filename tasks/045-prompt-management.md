@@ -12,7 +12,7 @@
 
 | slug | 기능 | 용도 | maxTokens |
 | --- | --- | --- | --- |
-| rfp-analysis | RFP 문서 분석 | 사업개요·평가항목·요구사항·추적성 추출 | 16,384 |
+| rfp-step1~7 | RFP 7단계 분석 | 사업개요·평가항목·요구사항·추적성 등 | 4,096~8,192 |
 | direction-generation | 방향성 생성 | 3~5개 제안 방향 후보 생성 | 4,096 |
 | strategy-generation | 전략 수립 | 경쟁전략·차별화·핵심메시지 | 4,096 |
 | outline-generation | 목차 생성 | 계층형 목차 구조 생성 | 4,096 |

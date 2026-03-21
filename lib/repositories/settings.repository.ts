@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db/client';
 import { aiSettings } from '@/lib/db/schema';
 import type { AiProviderType } from '@/lib/db/schema';
 import { encrypt, decrypt } from '@/lib/security/encrypt';
+import { DEFAULT_CLAUDE_MODEL, DEFAULT_GPT_MODEL } from '@/lib/ai/models';
 
 const DEFAULT_SETTINGS_ID = 'default';
 
@@ -19,8 +20,8 @@ export const settingsRepository = {
     const [defaultSettings] = await db.insert(aiSettings).values({
       id: DEFAULT_SETTINGS_ID,
       provider: 'claude' as AiProviderType,
-      claudeModel: 'claude-sonnet-4-6',
-      gptModel: 'gpt-4o',
+      claudeModel: DEFAULT_CLAUDE_MODEL,
+      gptModel: DEFAULT_GPT_MODEL,
     }).returning();
     return defaultSettings;
   },

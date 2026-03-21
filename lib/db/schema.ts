@@ -46,6 +46,7 @@ export const aiprowriterSchema = pgSchema('aiprowriter');
 // Project 상태 타입
 export type ProjectStatus =
   | 'uploaded'
+  | 'vectorized'
   | 'analyzing'
   | 'direction_set'
   | 'strategy_set'
@@ -113,6 +114,7 @@ export const rfpFiles = aiprowriterSchema.table('rfp_files', {
   fileSize: integer('file_size').notNull(),
   rawText: text('raw_text').notNull().default(''),
   gptFileId: text('gpt_file_id'),
+  imagePages: jsonb('image_pages').$type<number[]>().notNull().default([]),
   vectorStatus: text('vector_status').$type<'none' | 'processing' | 'completed' | 'failed'>().notNull().default('none'),
   uploadedAt: timestamp('uploaded_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
@@ -268,7 +270,7 @@ export const aiSettings = aiprowriterSchema.table('ai_settings', {
   id: text('id').primaryKey(), // 고정 키 'default' 사용
   provider: text('provider').$type<AiProviderType>().notNull().default('claude'),
   claudeModel: text('claude_model').notNull().default('claude-sonnet-4-6'),
-  gptModel: text('gpt_model').notNull().default('gpt-4o'),
+  gptModel: text('gpt_model').notNull().default('gpt-5.4-mini'),
   claudeApiKey: text('claude_api_key'), // AES-256-GCM 암호화 저장
   gptApiKey: text('gpt_api_key'),       // AES-256-GCM 암호화 저장
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

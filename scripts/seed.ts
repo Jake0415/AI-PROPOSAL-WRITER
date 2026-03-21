@@ -8,16 +8,16 @@ const SALT_ROUNDS = 12;
 
 const SEED_USERS = [
   {
-    loginId: 'yhk71261@gmail.com',
-    password: '@Dnflwlq01',
+    loginId: '1111',
+    password: '1111',
     name: '최고관리자',
     phone: '010-0000-0000',
     department: '시스템관리',
     role: 'super_admin' as const,
   },
   {
-    loginId: 'admin',
-    password: 'admin1234',
+    loginId: '2222',
+    password: '2222',
     name: '관리자',
     phone: '010-1111-1111',
     department: '제안팀',
@@ -59,6 +59,7 @@ async function seed() {
     }).onConflictDoUpdate({
       target: schema.profiles.loginId,
       set: {
+        passwordHash,
         name: user.name,
         phone: user.phone,
         department: user.department,
@@ -72,8 +73,8 @@ async function seed() {
 
   console.log('\n시드 완료!');
   console.log('─────────────────────────────────────');
-  console.log('최고관리자: yhk71261@gmail.com / @Dnflwlq01');
-  console.log('관리자:     admin / admin1234');
+  console.log('최고관리자: 1111 / 1111');
+  console.log('관리자:     2222 / 2222');
   console.log('테스트:     testuser / test1234');
   console.log('─────────────────────────────────────');
 

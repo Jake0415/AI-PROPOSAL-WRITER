@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   Upload,
+  Database,
   Search,
   Compass,
   Target,
@@ -23,7 +24,8 @@ interface StepNavigationProps {
 
 const STEPS = [
   { key: 'upload', label: 'RFP 업로드', icon: Upload, path: 'upload' },
-  { key: 'analysis', label: '분석 결과', icon: Search, path: 'analysis' },
+  { key: 'vectorize', label: '벡터 데이터 생성', icon: Database, path: 'vectorize' },
+  { key: 'analysis', label: 'RFP 분석', icon: Search, path: 'analysis' },
   { key: 'direction', label: '방향성 설정', icon: Compass, path: 'direction' },
   { key: 'strategy', label: '전략 수립', icon: Target, path: 'strategy' },
   { key: 'outline', label: '목차 구성', icon: List, path: 'outline' },
@@ -36,6 +38,7 @@ const STEPS = [
 
 const STATUS_ORDER = [
   'uploaded',
+  'vectorized',
   'analyzing',
   'direction_set',
   'strategy_set',
@@ -58,7 +61,7 @@ export function StepNavigation({ projectId, currentStatus }: StepNavigationProps
       {STEPS.map((step, i) => {
         const isActive = pathname.includes(`/${step.path}`);
         // 10단계 중 현재 상태에 따라 접근 가능 범위 결정
-        const isAccessible = i <= statusIndex + 2;
+        const isAccessible = i <= statusIndex + 1;
         const Icon = step.icon;
 
         return (

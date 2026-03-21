@@ -19,6 +19,7 @@ export const rfpRepository = {
     filePath: string;
     fileSize: number;
     rawText: string;
+    imagePages?: number[];
   }) {
     const db = getDb();
     const [file] = await db.insert(rfpFiles).values(data).returning();
@@ -41,6 +42,11 @@ export const rfpRepository = {
       .from(rfpFiles)
       .where(eq(rfpFiles.projectId, projectId));
     return results[0];
+  },
+
+  async deleteFileByProjectId(projectId: string) {
+    const db = getDb();
+    await db.delete(rfpFiles).where(eq(rfpFiles.projectId, projectId));
   },
 
   async updateVectorStatus(projectId: string, status: 'none' | 'processing' | 'completed' | 'failed') {

@@ -50,6 +50,55 @@ async function seedData() {
   }
   console.log('✅ 프롬프트 템플릿 UPSERT 완료');
 
+  // ─── AI 설정 시드 (기존 키 보존) ──────────────────
+  try {
+    const encryptionKey = process.env.ENCRYPTION_KEY;
+    if (!encryptionKey) {
+      console.log('⚠️  ENCRYPTION_KEY 미설정 → AI 설정 시드 스킵');
+    } else {
+      const { encrypt } = await import('../lib/security/encrypt');
+      const anthropicKey = process.env.ANTHROPIC_API_KEY;
+      const openaiKey = process.env.OPENAI_API_KEY;
+
+      const existingSettings = await db.select().from(schema.aiSettings)
+        .where(eq(schema.aiSettings.id, 'default'));
+
+      if (existingSettings.length === 0) {
+        const claudeKey = (anthropicKey && !anthropicKey.startsWith('your-')) ? encrypt(anthropicKey) : undefined;
+        const gptKey = (openaiKey && !openaiKey.startsWith('your-')) ? encrypt(openaiKey) : undefined;
+        await db.insert(schema.aiSettings).values({
+          id: 'default',
+          provider: 'claude',
+          claudeModel: 'claude-sonnet-4-6',
+          gptModel: 'gpt-5.4-mini',
+          ...(claudeKey && { claudeApiKey: claudeKey }),
+          ...(gptKey && { gptApiKey: gptKey }),
+        });
+        console.log('✅ AI 설정 초기 생성' +
+          (claudeKey ? ' (Claude 키 포함)' : '') +
+          (gptKey ? ' (OpenAI 키 포함)' : ''));
+      } else {
+        const update: Record<string, unknown> = {};
+        if (!existingSettings[0].claudeApiKey && anthropicKey && !anthropicKey.startsWith('your-')) {
+          update.claudeApiKey = encrypt(anthropicKey);
+        }
+        if (!existingSettings[0].gptApiKey && openaiKey && !openaiKey.startsWith('your-')) {
+          update.gptApiKey = encrypt(openaiKey);
+        }
+        if (Object.keys(update).length > 0) {
+          update.updatedAt = new Date();
+          await db.update(schema.aiSettings).set(update)
+            .where(eq(schema.aiSettings.id, 'default'));
+          console.log('✅ AI 설정 키 보충 완료');
+        } else {
+          console.log('✅ AI 설정 이미 존재 (변경 없음)');
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️  AI 설정 시드 실패 (계속 진행):', err);
+  }
+
   if (existingProject.length > 0) {
     // 기존 데모 데이터 삭제 후 재생성 (CASCADE로 연관 데이터도 삭제)
     await db.delete(schema.projects).where(eq(schema.projects.id, PROJECT_ID));

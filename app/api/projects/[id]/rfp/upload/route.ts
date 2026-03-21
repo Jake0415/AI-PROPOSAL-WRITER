@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, rm } from 'fs/promises';
 import path from 'path';
 import { parseRfpFile } from '@/lib/services/rfp-parser.service';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
@@ -95,6 +95,7 @@ export async function POST(
       filePath,
       fileSize: file.size,
       rawText,
+      imagePages: parsed.imagePages ?? [],
     });
 
     return NextResponse.json({
@@ -134,5 +135,46 @@ export async function GET(
     });
   } catch {
     return NextResponse.json({ success: false, error: { code: 'SERVER_ERROR', message: '파일 정보 조회 실패' } }, { status: 500 });
+  }
+}
+
+// DELETE - RFP 파일 삭제 (벡터 데이터 생성 전에만 허용)
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id: projectId } = await params;
+  try {
+    const rfpFile = await rfpRepository.getFileByProjectId(projectId);
+    if (!rfpFile) {
+      return NextResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: '삭제할 파일이 없습니다' } },
+        { status: 404 },
+      );
+    }
+
+    if (rfpFile.vectorStatus !== 'none') {
+      return NextResponse.json(
+        { success: false, error: { code: 'FORBIDDEN', message: '벡터 데이터 생성이 진행된 파일은 삭제할 수 없습니다' } },
+        { status: 403 },
+      );
+    }
+
+    // 파일시스템에서 프로젝트 업로드 디렉토리 삭제
+    const uploadDir = path.join(process.cwd(), 'data', 'uploads', projectId);
+    await rm(uploadDir, { recursive: true, force: true }).catch(() => {});
+
+    // DB에서 레코드 삭제
+    await rfpRepository.deleteFileByProjectId(projectId);
+
+    // 프로젝트 상태 초기화
+    await projectRepository.updateStatus(projectId, 'uploaded');
+
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json(
+      { success: false, error: { code: 'SERVER_ERROR', message: '파일 삭제에 실패했습니다' } },
+      { status: 500 },
+    );
   }
 }

@@ -1,7 +1,9 @@
 import OpenAI, { toFile } from 'openai';
 import type { AiProviderInterface, GenerateOptions } from './types';
 
-const DEFAULT_MODEL = 'gpt-4o';
+import { DEFAULT_GPT_MODEL, isGpt5Model } from '@/lib/ai/models';
+
+const DEFAULT_MODEL = DEFAULT_GPT_MODEL;
 const DEFAULT_MAX_TOKENS = 4096;
 
 let _client: OpenAI | null = null;
@@ -23,9 +25,13 @@ export const gptProvider: AiProviderInterface = {
     const { getApiKey } = await import('@/lib/ai/client');
     const apiKey = await getApiKey('gpt');
     const client = getClient(apiKey);
+    const model = options.model ?? process.env.AI_MODEL_GPT ?? DEFAULT_MODEL;
+    const tokenLimit = options.maxTokens ?? DEFAULT_MAX_TOKENS;
     const response = await client.chat.completions.create({
-      model: options.model ?? process.env.AI_MODEL_GPT ?? DEFAULT_MODEL,
-      max_tokens: options.maxTokens ?? DEFAULT_MAX_TOKENS,
+      model,
+      ...(isGpt5Model(model)
+        ? { max_completion_tokens: tokenLimit }
+        : { max_tokens: tokenLimit }),
       messages: [
         { role: 'system', content: options.systemPrompt },
         { role: 'user', content: options.userPrompt },
@@ -39,9 +45,13 @@ export const gptProvider: AiProviderInterface = {
     const { getApiKey } = await import('@/lib/ai/client');
     const apiKey = await getApiKey('gpt');
     const client = getClient(apiKey);
+    const model = options.model ?? process.env.AI_MODEL_GPT ?? DEFAULT_MODEL;
+    const tokenLimit = options.maxTokens ?? DEFAULT_MAX_TOKENS;
     const stream = await client.chat.completions.create({
-      model: options.model ?? process.env.AI_MODEL_GPT ?? DEFAULT_MODEL,
-      max_tokens: options.maxTokens ?? DEFAULT_MAX_TOKENS,
+      model,
+      ...(isGpt5Model(model)
+        ? { max_completion_tokens: tokenLimit }
+        : { max_tokens: tokenLimit }),
       messages: [
         { role: 'system', content: options.systemPrompt },
         { role: 'user', content: options.userPrompt },

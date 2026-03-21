@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Bot, Check, Loader2, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CLAUDE_MODELS, GPT_MODELS } from '@/lib/ai/models';
 
 interface AiSettingsData {
   provider: 'claude' | 'gpt';
@@ -24,15 +25,15 @@ const PROVIDERS = [
     name: 'Claude (Anthropic)',
     description: 'Claude Sonnet 4.6 기반. 한국어 이해도와 구조화된 JSON 출력에 강점.',
     icon: Bot,
-    models: ['claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
+    models: CLAUDE_MODELS.map(m => m.id),
     keyField: 'hasClaudeKey' as const,
   },
   {
     id: 'gpt' as const,
     name: 'GPT (OpenAI)',
-    description: 'GPT-4o 기반. JSON 모드 지원으로 안정적인 구조화 출력.',
+    description: 'GPT-5.4 mini 기반. 1M 컨텍스트 윈도우, 비용 효율적.',
     icon: Zap,
-    models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
+    models: GPT_MODELS.map(m => m.id),
     keyField: 'hasGptKey' as const,
   },
 ];

@@ -8,43 +8,91 @@ import {
   searchPoints,
   getCollectionName,
 } from './qdrant-client';
-import { splitTextIntoChunks, createEmbeddings, createEmbedding } from './embedding.service';
-import { convertPdfToImages, getPageImagesDir } from './pdf-image.service';
+import { splitTextIntoChunks, createEmbeddingsWithProgress, createEmbedding } from './embedding.service';
+import {
+  convertSelectivePdfToImages,
+  convertPdfToImages,
+  generateBatchImageMetadata,
+  getPageImagesDir,
+} from './pdf-image.service';
+import type { SSEProgress } from '@/lib/utils/sse-stream';
+import type { ImageMetadata } from './pdf-image.service';
 
 export interface RagSearchResult {
   chunks: Array<{ text: string; pageNumber: number; score: number }>;
+  imageMatches: Array<{ pageNumber: number; description: string; keywords: string[]; score: number }>;
   pageImages: Array<{ pageNumber: number; base64: string }>;
 }
 
+export interface VectorRegistrationResult {
+  chunkCount: number;
+  imageChunkCount: number;
+  pageCount: number;
+  elapsedMs: number;
+  embeddingModel: string;
+  chunkSizeTokens: number;
+}
+
+const VECTOR_STEPS = [
+  '기존 벡터 초기화',
+  '텍스트 청크 분할',
+  '임베딩 생성',
+  '텍스트 벡터 저장',
+  '이미지 페이지 변환',
+  '이미지 메타데이터 생성',
+  '이미지 벡터 저장',
+  '완료',
+];
+
 /**
  * PDF를 벡터화하여 Qdrant에 등록
- * 1. 텍스트 청크 → 임베딩 → Qdrant
- * 2. PDF → 페이지별 이미지 변환
+ * 8단계 SSE 스트리밍: 텍스트 청크 + 이미지 메타데이터
  */
 export async function registerVectors(
   projectId: string,
   rawText: string,
   pdfPath: string,
-  onProgress?: (step: string, progress: number) => void,
-): Promise<{ chunkCount: number; pageCount: number }> {
+  onProgress?: (p: SSEProgress) => void,
+  imagePages?: number[],
+): Promise<VectorRegistrationResult> {
+  const startTime = Date.now();
   const collectionName = getCollectionName(projectId);
 
-  // 기존 컬렉션 삭제 후 재생성
-  onProgress?.('기존 벡터 초기화', 10);
+  function progress(stepIndex: number, detail?: string, pct?: number) {
+    const base = VECTOR_STEPS[stepIndex];
+    const step = detail ? `${base} - ${detail}` : base;
+    onProgress?.({
+      step,
+      progress: pct ?? Math.round((stepIndex / VECTOR_STEPS.length) * 100),
+      stepIndex,
+      totalSteps: VECTOR_STEPS.length,
+      ...(stepIndex === 0 ? { steps: VECTOR_STEPS } : {}),
+    });
+  }
+
+  // Step 0: 기존 벡터 초기화
+  progress(0);
   await deleteCollection(collectionName);
   await ensureCollection(collectionName);
 
-  // 1. 텍스트 청크 분할
-  onProgress?.('텍스트 청크 분할', 20);
+  // Step 1: 텍스트 청크 분할
+  progress(1);
   const chunks = splitTextIntoChunks(rawText);
+  progress(1, `${chunks.length}개 청크 생성됨`, 12);
 
-  // 2. 임베딩 생성
-  onProgress?.('임베딩 생성', 40);
-  const embeddings = await createEmbeddings(chunks.map(c => c.text));
+  // Step 2: 임베딩 생성 (배치별 진행률)
+  progress(2, `0/${chunks.length} 청크`, 15);
+  const embeddings = await createEmbeddingsWithProgress(
+    chunks.map(c => c.text),
+    (completed, total) => {
+      const pct = 15 + Math.round((completed / total) * 20); // 15-35%
+      progress(2, `${completed}/${total} 청크`, pct);
+    },
+  );
 
-  // 3. Qdrant에 저장
-  onProgress?.('벡터 저장', 60);
-  const points = chunks.map((chunk, i) => ({
+  // Step 3: 텍스트 벡터 저장 (배치별 진행률)
+  progress(3, `0/${chunks.length} 포인트`, 35);
+  const textPoints = chunks.map((chunk, i) => ({
     id: uuidv4(),
     vector: embeddings[i],
     payload: {
@@ -56,49 +104,123 @@ export async function registerVectors(
     },
   }));
 
-  // 배치로 저장 (100개씩)
-  for (let i = 0; i < points.length; i += 100) {
-    await upsertPoints(collectionName, points.slice(i, i + 100));
+  const BATCH = 100;
+  for (let i = 0; i < textPoints.length; i += BATCH) {
+    await upsertPoints(collectionName, textPoints.slice(i, i + BATCH));
+    const completed = Math.min(i + BATCH, textPoints.length);
+    const pct = 35 + Math.round((completed / textPoints.length) * 15); // 35-50%
+    progress(3, `${completed}/${textPoints.length} 포인트`, pct);
   }
 
-  // 4. PDF → 페이지별 이미지 변환
-  onProgress?.('페이지 이미지 변환', 80);
+  // Step 4: 이미지 페이지 변환 (선택적)
+  progress(4, '', 50);
   const pagesDir = getPageImagesDir(projectId);
-  const pageImages = await convertPdfToImages(pdfPath, pagesDir);
+  const hasImagePages = imagePages && imagePages.length > 0;
 
-  onProgress?.('벡터 등록 완료', 100);
+  const pageImages = hasImagePages
+    ? await convertSelectivePdfToImages(pdfPath, pagesDir, imagePages)
+    : await convertPdfToImages(pdfPath, pagesDir);
+
+  progress(4, `${pageImages.length}장 변환 완료`, 60);
+
+  // Step 5: 이미지 메타데이터 생성 (GPT Vision)
+  let imageMetadataList: ImageMetadata[] = [];
+  if (pageImages.length > 0 && hasImagePages) {
+    progress(5, `0/${pageImages.length}장 분석 중`, 60);
+    imageMetadataList = await generateBatchImageMetadata(
+      pageImages,
+      (completed, total) => {
+        const pct = 60 + Math.round((completed / total) * 20); // 60-80%
+        progress(5, `${completed}/${total}장 분석 완료`, pct);
+      },
+    );
+  } else {
+    progress(5, '이미지 페이지 없음 (스킵)', 80);
+  }
+
+  // Step 6: 이미지 벡터 저장
+  let imageChunkCount = 0;
+  if (imageMetadataList.length > 0) {
+    progress(6, `${imageMetadataList.length}개 이미지 벡터화`, 80);
+
+    const descriptions = imageMetadataList.map(m =>
+      `${m.description} ${m.keywords.join(' ')}`,
+    );
+    const imageEmbeddings = await createEmbeddingsWithProgress(descriptions);
+
+    const imagePoints = imageMetadataList.map((meta, i) => ({
+      id: uuidv4(),
+      vector: imageEmbeddings[i],
+      payload: {
+        type: 'image' as const,
+        description: meta.description,
+        keywords: meta.keywords,
+        pageNumber: meta.pageNumber,
+        imagePath: meta.imagePath,
+        projectId,
+      },
+    }));
+
+    await upsertPoints(collectionName, imagePoints);
+    imageChunkCount = imagePoints.length;
+    progress(6, `${imageChunkCount}개 저장 완료`, 90);
+  } else {
+    progress(6, '스킵', 90);
+  }
+
+  // Step 7: 완료
+  progress(7, '', 100);
 
   return {
     chunkCount: chunks.length,
+    imageChunkCount,
     pageCount: pageImages.length,
+    elapsedMs: Date.now() - startTime,
+    embeddingModel: 'text-embedding-3-small',
+    chunkSizeTokens: 2048,
   };
 }
 
 /**
- * RAG 검색: 쿼리와 유사한 텍스트 청크 + 관련 페이지 이미지 반환
+ * RAG 검색: 텍스트 청크 + 이미지 매칭 + 페이지 이미지 반환
  */
 export async function ragSearch(
   projectId: string,
   query: string,
-  topK = 10,
+  topK = 15,
 ): Promise<RagSearchResult> {
   const collectionName = getCollectionName(projectId);
 
-  // 쿼리 임베딩
   const queryVector = await createEmbedding(query);
-
-  // Qdrant 검색
   const results = await searchPoints(collectionName, queryVector, topK);
 
-  // 텍스트 청크 수집
-  const chunks = results.map(r => ({
-    text: (r.payload?.text as string) ?? '',
-    pageNumber: (r.payload?.pageNumber as number) ?? 0,
-    score: r.score,
-  }));
+  const textChunks: RagSearchResult['chunks'] = [];
+  const imageMatches: RagSearchResult['imageMatches'] = [];
 
-  // 관련 페이지 번호 (중복 제거, 최대 3장)
-  const pageNumbers = [...new Set(chunks.map(c => c.pageNumber).filter(p => p > 0))].slice(0, 3);
+  for (const r of results) {
+    if (r.payload?.type === 'image') {
+      imageMatches.push({
+        pageNumber: (r.payload.pageNumber as number) ?? 0,
+        description: (r.payload.description as string) ?? '',
+        keywords: (r.payload.keywords as string[]) ?? [],
+        score: r.score,
+      });
+    } else {
+      textChunks.push({
+        text: (r.payload?.text as string) ?? '',
+        pageNumber: (r.payload?.pageNumber as number) ?? 0,
+        score: r.score,
+      });
+    }
+  }
+
+  // text + image 양쪽에서 페이지 번호 수집 (최대 5장)
+  const pageNumbers = [
+    ...new Set([
+      ...textChunks.map(c => c.pageNumber).filter(p => p > 0),
+      ...imageMatches.map(m => m.pageNumber).filter(p => p > 0),
+    ]),
+  ].slice(0, 5);
 
   // 페이지 이미지 로드 (base64)
   const pagesDir = getPageImagesDir(projectId);
@@ -115,5 +237,5 @@ export async function ragSearch(
     } catch { /* 이미지 없으면 무시 */ }
   }
 
-  return { chunks, pageImages };
+  return { chunks: textChunks, imageMatches, pageImages };
 }
