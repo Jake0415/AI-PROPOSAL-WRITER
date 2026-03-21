@@ -24,9 +24,21 @@ export default function StrategyPage() {
   useEffect(() => {
     if (!initialized.current) {
       initialized.current = true;
-      sse.execute(`/api/projects/${projectId}/strategy/generate`);
+      fetch(`/api/projects/${projectId}/strategy`)
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.success && json.data) {
+            setStrategy(json.data);
+          } else {
+            sse.execute(`/api/projects/${projectId}/strategy/generate`);
+          }
+        })
+        .catch(() => {
+          sse.execute(`/api/projects/${projectId}/strategy/generate`);
+        });
     }
-  }, [projectId, sse]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
 
   useEffect(() => {
     if (sse.result) {
@@ -46,7 +58,7 @@ export default function StrategyPage() {
         <div className="flex items-center gap-2">
           {strategy && (
             <>
-              <AiChatPanel projectId={projectId} userId="" topic="strategy-coaching" />
+              <AiChatPanel projectId={projectId} userId="anonymous" topic="strategy-coaching" />
               <CoachingButton projectId={projectId} stepKey="strategy" />
             </>
           )}

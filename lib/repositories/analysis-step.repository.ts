@@ -1,4 +1,4 @@
-import { eq, and, asc } from 'drizzle-orm';
+import { eq, and, asc, gte } from 'drizzle-orm';
 import { getDb } from '@/lib/db/client';
 import { analysisSteps } from '@/lib/db/schema';
 import type { AnalysisStepStatus } from '@/lib/db/schema';
@@ -73,13 +73,11 @@ export const analysisStepRepository = {
 
   async resetFromStep(projectId: string, fromStepNumber: number) {
     const db = getDb();
-    const steps = await this.getByProject(projectId);
-    for (const step of steps) {
-      if (step.stepNumber >= fromStepNumber) {
-        await db.update(analysisSteps)
-          .set({ status: 'pending' as const, result: null, errorMessage: null, updatedAt: new Date() })
-          .where(eq(analysisSteps.id, step.id));
-      }
-    }
+    await db.update(analysisSteps)
+      .set({ status: 'pending' as const, result: null, errorMessage: null, updatedAt: new Date() })
+      .where(and(
+        eq(analysisSteps.projectId, projectId),
+        gte(analysisSteps.stepNumber, fromStepNumber),
+      ));
   },
 };

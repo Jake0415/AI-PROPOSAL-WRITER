@@ -2,6 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+/** SVG 문자열에서 script 태그와 인라인 이벤트 핸들러를 제거 */
+function sanitizeSvg(svg: string): string {
+  return svg
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '');
+}
+
 interface MermaidDiagramProps {
   chart: string;
   className?: string;
@@ -70,7 +77,7 @@ export function MermaidDiagram({ chart, className = '' }: MermaidDiagramProps) {
     <div
       ref={containerRef}
       className={`rounded border border-border/40 bg-white dark:bg-muted/30 p-4 overflow-x-auto ${className}`}
-      dangerouslySetInnerHTML={{ __html: svg }}
+      dangerouslySetInnerHTML={{ __html: sanitizeSvg(svg) }}
     />
   );
 }

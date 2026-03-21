@@ -60,7 +60,8 @@ export default function OutlinePage() {
           sse.execute(`/api/projects/${projectId}/outline/generate`);
         });
     }
-  }, [projectId, sse]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
 
   useEffect(() => {
     if (sse.result) setSections(sse.result);
@@ -164,7 +165,7 @@ export default function OutlinePage() {
                 <Sparkles className="mr-1 h-3 w-3" />
                 재생성
               </Button>
-              <AiChatPanel projectId={projectId} userId="" topic="outline-coaching" />
+              <AiChatPanel projectId={projectId} userId="anonymous" topic="outline-coaching" />
               <CoachingButton projectId={projectId} stepKey="outline" />
               <Button onClick={() => router.push(`/projects/${projectId}/sections`)}>
                 다음: 내용 생성

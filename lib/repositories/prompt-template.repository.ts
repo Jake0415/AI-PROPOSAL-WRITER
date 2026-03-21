@@ -1,4 +1,4 @@
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import { getDb } from '@/lib/db/client';
 import { promptTemplates, promptTemplateVersions } from '@/lib/db/schema';
 import type { PromptCategory } from '@/lib/db/schema';
@@ -6,15 +6,18 @@ import type { PromptCategory } from '@/lib/db/schema';
 export const promptTemplateRepository = {
   async findAll(filter?: { category?: PromptCategory; isActive?: boolean }) {
     const db = getDb();
-    let query = db.select().from(promptTemplates);
-
+    const conditions = [];
     if (filter?.category) {
-      query = query.where(eq(promptTemplates.category, filter.category)) as typeof query;
+      conditions.push(eq(promptTemplates.category, filter.category));
     }
     if (filter?.isActive !== undefined) {
-      query = query.where(eq(promptTemplates.isActive, filter.isActive)) as typeof query;
+      conditions.push(eq(promptTemplates.isActive, filter.isActive));
     }
 
+    const query = db.select().from(promptTemplates);
+    if (conditions.length > 0) {
+      return query.where(and(...conditions));
+    }
     return query;
   },
 
@@ -84,8 +87,11 @@ export const promptTemplateRepository = {
     const results = await db
       .select()
       .from(promptTemplateVersions)
-      .where(eq(promptTemplateVersions.templateId, templateId));
-    return results.find((v) => v.version === version) ?? null;
+      .where(and(
+        eq(promptTemplateVersions.templateId, templateId),
+        eq(promptTemplateVersions.version, version),
+      ));
+    return results[0] ?? null;
   },
 
   async createVersion(data: {

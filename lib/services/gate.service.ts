@@ -40,14 +40,18 @@ export async function checkGate(projectId: string, gate: number): Promise<GateCh
 async function checkGate1(projectId: string): Promise<GateCheckResult> {
   const checks: GateCheckItem[] = [];
 
-  const analysis = await rfpRepository.getAnalysisByProjectId(projectId);
+  const [analysis, direction, strategy] = await Promise.all([
+    rfpRepository.getAnalysisByProjectId(projectId),
+    proposalRepository.getDirection(projectId),
+    proposalRepository.getStrategy(projectId),
+  ]);
+
   checks.push({
     name: 'RFP 분석 완료',
     passed: !!analysis,
     detail: analysis ? '분석 결과가 존재합니다' : 'RFP 분석을 먼저 실행해주세요',
   });
 
-  const direction = await proposalRepository.getDirection(projectId);
   const directionConfirmed = direction && direction.selectedIndex != null && direction.selectedIndex >= 0;
   checks.push({
     name: '방향성 선택 완료',
@@ -55,7 +59,6 @@ async function checkGate1(projectId: string): Promise<GateCheckResult> {
     detail: directionConfirmed ? `방향성 ${(direction.selectedIndex ?? 0) + 1}번 선택됨` : '방향성을 선택해주세요',
   });
 
-  const strategy = await proposalRepository.getStrategy(projectId);
   checks.push({
     name: '전략 수립 완료',
     passed: !!strategy,

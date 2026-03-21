@@ -45,7 +45,8 @@ export default function DirectionPage() {
         })
         .finally(() => setIsLoadingExisting(false));
     }
-  }, [projectId, sse]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
 
   useEffect(() => {
     if (sse.result) {
@@ -84,7 +85,7 @@ export default function DirectionPage() {
         <div className="flex items-center gap-2">
           {candidates.length > 0 && (
             <>
-              <AiChatPanel projectId={projectId} userId="" topic="direction-coaching" />
+              <AiChatPanel projectId={projectId} userId="anonymous" topic="direction-coaching" />
               <CoachingButton projectId={projectId} stepKey="direction" />
             </>
           )}

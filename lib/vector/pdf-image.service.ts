@@ -102,7 +102,9 @@ export async function generateImageMetadata(
   pageNumber: number,
 ): Promise<ImageMetadata> {
   const base64 = await imageToBase64(imagePath);
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const { getApiKey } = await import('@/lib/ai/client');
+  const apiKey = await getApiKey('gpt');
+  const client = new OpenAI({ apiKey });
 
   const model = process.env.AI_MODEL_GPT ?? DEFAULT_GPT_MODEL;
   const response = await client.chat.completions.create({
@@ -178,8 +180,18 @@ export async function imageToBase64(imagePath: string): Promise<string> {
 }
 
 /**
+ * UUID 형식 검증 (Path Traversal 방어)
+ */
+function validateUUID(id: string): void {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    throw new Error('Invalid project ID format');
+  }
+}
+
+/**
  * 프로젝트의 페이지 이미지 디렉토리 경로
  */
 export function getPageImagesDir(projectId: string): string {
+  validateUUID(projectId);
   return path.join(process.cwd(), 'data', 'uploads', projectId, 'pages');
 }

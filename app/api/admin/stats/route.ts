@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { projectRepository } from '@/lib/repositories/project.repository';
+import { requireRole } from '@/lib/auth/with-auth';
 
 export async function GET() {
   try {
+    const auth = await requireRole('admin');
+    if (auth instanceof NextResponse) return auth;
     const projects = await projectRepository.findAll();
 
     // 상태별 집계

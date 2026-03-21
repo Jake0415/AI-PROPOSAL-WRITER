@@ -3,6 +3,7 @@ import { tmpdir } from 'os';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import mammoth from 'mammoth';
+import { logger } from '@/lib/logger';
 
 export interface ParseResult {
   text: string;
@@ -18,7 +19,7 @@ export async function parsePdf(buffer: Buffer): Promise<ParseResult> {
   try {
     return await parsePdfWithOpenDataLoader(buffer);
   } catch (err) {
-    console.warn('⚠️ @opendataloader/pdf 실패, pdf-parse로 폴백:', (err as Error).message);
+    logger.warn('@opendataloader/pdf 실패, pdf-parse로 폴백', { error: (err as Error).message });
     return parsePdfWithFallback(buffer);
   }
 }
@@ -65,7 +66,6 @@ async function parsePdfWithOpenDataLoader(buffer: Buffer): Promise<ParseResult> 
     const imagePages: number[] = [];
 
     try {
-      const files = (await import('fs/promises')).readdir;
       const dirFiles = await (await import('fs/promises')).readdir(outputDir);
       const jsonFile = dirFiles.find(f => f.endsWith('.json'));
       if (jsonFile) {

@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { projectRepository } from '@/lib/repositories/project.repository';
 import { createProjectSchema, projectFilterSchema } from '@/lib/validators/project.schema';
+import { requireAuth } from '@/lib/auth/with-auth';
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+
     const { searchParams } = request.nextUrl;
     const filterInput = {
       status: searchParams.get('status') || undefined,
@@ -32,6 +36,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth();
+    if (auth instanceof NextResponse) return auth;
+
     const body = await request.json();
     const parsed = createProjectSchema.safeParse(body);
 

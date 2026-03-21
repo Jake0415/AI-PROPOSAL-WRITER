@@ -5,11 +5,14 @@ const CHUNK_SIZE_TOKENS = 2048;
 const CHUNK_OVERLAP_TOKENS = 200;
 
 let _client: OpenAI | null = null;
+let _lastApiKey: string | undefined = undefined;
 
-function getClient(): OpenAI {
-  if (!_client) {
-    // DB 키 로드는 비동기이므로 환경변수로 폴백
-    _client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+async function getClient(): Promise<OpenAI> {
+  const { getApiKey } = await import('@/lib/ai/client');
+  const apiKey = await getApiKey('gpt');
+  if (!_client || apiKey !== _lastApiKey) {
+    _lastApiKey = apiKey;
+    _client = new OpenAI({ apiKey });
   }
   return _client;
 }
@@ -77,7 +80,7 @@ export function splitTextIntoChunks(
 
 /** 텍스트 배열을 임베딩 벡터로 변환 */
 export async function createEmbeddings(texts: string[]): Promise<number[][]> {
-  const client = getClient();
+  const client = await getClient();
 
   // OpenAI API는 한번에 최대 2048개까지 처리 가능
   const batchSize = 100;
@@ -100,7 +103,7 @@ export async function createEmbeddingsWithProgress(
   texts: string[],
   onBatchComplete?: (completed: number, total: number) => void,
 ): Promise<number[][]> {
-  const client = getClient();
+  const client = await getClient();
   const batchSize = 100;
   const allEmbeddings: number[][] = [];
 

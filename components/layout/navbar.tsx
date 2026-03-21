@@ -20,6 +20,9 @@ interface TenantBranding {
   logoUrl: string;
 }
 
+/** URL이 https://, http://, 또는 상대경로(/)로 시작하는지 검증 */
+const isValidUrl = (url: string) => /^(https?:\/\/|\/)/i.test(url);
+
 export function Navbar() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -65,7 +68,7 @@ export function Navbar() {
       <div className="container mx-auto flex h-14 max-w-screen-2xl items-center px-4">
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            {branding.logoUrl ? (
+            {branding.logoUrl && isValidUrl(branding.logoUrl) ? (
               <img src={branding.logoUrl} alt="로고" className="h-5 w-5 object-contain" />
             ) : (
               <FileText className="h-5 w-5 text-primary" />

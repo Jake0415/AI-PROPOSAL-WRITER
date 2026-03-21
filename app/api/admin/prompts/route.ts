@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { promptTemplateRepository } from '@/lib/repositories/prompt-template.repository';
 import { getAllDefaultPrompts } from '@/lib/ai/prompts/defaults';
+import { requireRole } from '@/lib/auth/with-auth';
 
 export async function GET() {
   try {
+    const auth = await requireRole('admin');
+    if (auth instanceof NextResponse) return auth;
     const dbTemplates = await promptTemplateRepository.findAll();
     const defaults = getAllDefaultPrompts();
 

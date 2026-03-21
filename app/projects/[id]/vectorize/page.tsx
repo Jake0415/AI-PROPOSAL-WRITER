@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,13 @@ export default function VectorizePage() {
     }
     loadFileInfo();
   }, [projectId]);
+
+  const handleStatusChange = useCallback((status: string) => {
+    setRfpFile(prev => prev ? { ...prev, vectorStatus: status } : null);
+    if (status === 'completed') {
+      router.refresh();
+    }
+  }, [router]);
 
   if (loading) {
     return (
@@ -78,13 +85,7 @@ export default function VectorizePage() {
       <VectorRegistrationPanel
         projectId={projectId}
         rfpFile={rfpFile}
-        onStatusChange={(status) => {
-          setRfpFile(prev => prev ? { ...prev, vectorStatus: status } : null);
-          if (status === 'completed') {
-            // 서버 컴포넌트(사이드바) 상태 갱신
-            router.refresh();
-          }
-        }}
+        onStatusChange={handleStatusChange}
       />
 
       {/* 완료 시 다음 단계 버튼 */}

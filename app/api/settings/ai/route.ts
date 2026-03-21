@@ -3,11 +3,15 @@ import { settingsRepository } from '@/lib/repositories/settings.repository';
 import { setRuntimeProvider } from '@/lib/ai/client';
 import { maskApiKey } from '@/lib/security/encrypt';
 import { decrypt } from '@/lib/security/encrypt';
+import { requireRole } from '@/lib/auth/with-auth';
 import type { AiProviderType } from '@/lib/db/schema';
 
-// AI 설정 조회
+// AI 설정 조회 (관리자만)
 export async function GET() {
   try {
+    const auth = await requireRole('admin');
+    if (auth instanceof NextResponse) return auth;
+
     const settings = await settingsRepository.getAiSettings();
 
     // DB 키 존재 여부 + 마스킹
@@ -48,9 +52,12 @@ export async function GET() {
   }
 }
 
-// AI 설정 변경
+// AI 설정 변경 (관리자만)
 export async function PUT(request: NextRequest) {
   try {
+    const auth = await requireRole('admin');
+    if (auth instanceof NextResponse) return auth;
+
     const body = await request.json();
     const { provider, claudeModel, gptModel, claudeApiKey, gptApiKey } = body as {
       provider?: AiProviderType;

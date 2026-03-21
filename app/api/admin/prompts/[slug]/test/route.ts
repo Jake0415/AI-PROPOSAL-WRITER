@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from '@/lib/ai/client';
+import { requireRole } from '@/lib/auth/with-auth';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   try {
+    const auth = await requireRole('admin');
+    if (auth instanceof NextResponse) return auth;
+
     await params;
     const { systemPrompt, userPrompt, maxTokens } = await request.json();
 

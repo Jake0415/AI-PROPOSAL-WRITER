@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { promptTemplateRepository } from '@/lib/repositories/prompt-template.repository';
 import { getDefaultPrompt } from '@/lib/ai/prompts/defaults';
 import { updatePrompt, resetToDefault } from '@/lib/services/prompt.service';
+import { requireRole } from '@/lib/auth/with-auth';
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   try {
+    const auth = await requireRole('admin');
+    if (auth instanceof NextResponse) return auth;
+
     const { slug } = await params;
     const dbTemplate = await promptTemplateRepository.findBySlug(slug);
     const defaultDef = getDefaultPrompt(slug);
@@ -53,6 +57,9 @@ export async function PUT(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   try {
+    const auth = await requireRole('admin');
+    if (auth instanceof NextResponse) return auth;
+
     const { slug } = await params;
     const body = await request.json();
 
@@ -87,6 +94,9 @@ export async function DELETE(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   try {
+    const auth = await requireRole('admin');
+    if (auth instanceof NextResponse) return auth;
+
     const { slug } = await params;
     await resetToDefault(slug);
     return NextResponse.json({ success: true });

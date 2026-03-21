@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
+import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
@@ -11,7 +11,6 @@ function getEncryptionKey(): Buffer {
   }
   if (key.length === 64) return Buffer.from(key, 'hex');
   if (key.length === 44) return Buffer.from(key, 'base64');
-  const { createHash } = require('crypto');
   return createHash('sha256').update(key).digest();
 }
 

@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promptTemplateRepository } from '@/lib/repositories/prompt-template.repository';
+import { requireRole } from '@/lib/auth/with-auth';
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   try {
+    const auth = await requireRole('admin');
+    if (auth instanceof NextResponse) return auth;
+
     const { slug } = await params;
     const template = await promptTemplateRepository.findBySlug(slug);
 

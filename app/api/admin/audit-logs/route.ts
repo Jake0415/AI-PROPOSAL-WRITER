@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auditService } from '@/lib/services/audit.service';
 import type { AuditAction, AuditResourceType } from '@/lib/db/schema';
+import { requireRole } from '@/lib/auth/with-auth';
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireRole('admin');
+    if (auth instanceof NextResponse) return auth;
     const sp = request.nextUrl.searchParams;
 
     const filter = {

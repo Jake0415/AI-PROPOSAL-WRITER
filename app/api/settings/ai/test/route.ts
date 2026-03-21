@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { AiProvider } from '@/lib/ai/providers/types';
 import { claudeProvider } from '@/lib/ai/providers/claude';
 import { gptProvider } from '@/lib/ai/providers/gpt';
+import { requireRole } from '@/lib/auth/with-auth';
 
-// AI 연결 테스트
+// AI 연결 테스트 (관리자만)
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireRole('admin');
+    if (auth instanceof NextResponse) return auth;
+
     const body = await request.json();
     const { provider } = body as { provider: AiProvider };
 

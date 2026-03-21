@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface Profile {
@@ -25,11 +25,7 @@ export function useAuth() {
     isLoading: true,
   });
 
-  useEffect(() => {
-    fetchMe();
-  }, []);
-
-  async function fetchMe() {
+  const fetchMe = useCallback(async () => {
     try {
       const res = await fetch('/api/auth/me');
       if (res.ok) {
@@ -43,7 +39,11 @@ export function useAuth() {
       // 인증 확인 실패
     }
     setState({ profile: null, isLoading: false });
-  }
+  }, []);
+
+  useEffect(() => {
+    fetchMe();
+  }, [fetchMe]);
 
   async function signOut() {
     await fetch('/api/auth/logout', { method: 'POST' });

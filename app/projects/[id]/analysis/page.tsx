@@ -86,7 +86,7 @@ export default function AnalysisPage() {
         </div>
         {analysis && (
           <div className="flex items-center gap-2">
-            <AiChatPanel projectId={projectId} userId="" topic="rfp-analysis" />
+            <AiChatPanel projectId={projectId} userId="anonymous" topic="rfp-analysis" />
             <CoachingButton projectId={projectId} stepKey="analysis" />
             <Button onClick={() => router.push(`/projects/${projectId}/direction`)}>
               다음: 방향성 설정
@@ -203,8 +203,8 @@ export default function AnalysisPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(analysis.evaluationItems ?? []).map((item, i) => (
-                        <tr key={i} className="border-b last:border-0">
+                      {(analysis.evaluationItems ?? []).map((item) => (
+                        <tr key={item.id} className="border-b last:border-0">
                           <td className="py-2 font-mono text-xs">{item.id}</td><td className="py-2">{item.category}</td><td className="py-2">{item.item}</td>
                           <td className="py-2 text-right font-medium">{item.score}점</td><td className="py-2 text-right">{item.weight}%</td>
                           <td className="py-2"><Badge className={`text-[10px] ${PRIORITY_STYLES[item.priority]}`}>{item.priority === 'high' ? '고' : item.priority === 'medium' ? '중' : '저'}</Badge></td>
@@ -232,8 +232,8 @@ export default function AnalysisPage() {
                       <span className="text-muted-foreground font-normal">({reqs.length}개)</span>
                     </h3>
                     <div className="space-y-1">
-                      {reqs.map((req, i) => (
-                        <div key={i} className="flex items-start gap-3 py-2 border-b last:border-0 text-sm">
+                      {reqs.map((req) => (
+                        <div key={req.id} className="flex items-start gap-3 py-2 border-b last:border-0 text-sm">
                           <span className="font-mono text-xs text-muted-foreground w-24 shrink-0">{req.id}</span>
                           <div className="flex-1">
                             <span className="font-medium">{req.title ?? req.description?.slice(0, 50)}</span>
@@ -281,7 +281,7 @@ export default function AnalysisPage() {
                 <Card className="border-amber-200 dark:border-amber-800">
                   <CardHeader><CardTitle className="text-sm text-amber-700 dark:text-amber-300">⚠️ 매핑 안 된 필수 요구사항 ({unmappedMandatory.length}개)</CardTitle></CardHeader>
                   <div className="px-6 pb-4 space-y-1">
-                    {unmappedMandatory.map((req, i) => <div key={i} className="text-xs text-amber-600 dark:text-amber-400">{req.id} — {req.title ?? req.description?.slice(0, 60)}</div>)}
+                    {unmappedMandatory.map((req) => <div key={req.id} className="text-xs text-amber-600 dark:text-amber-400">{req.id} — {req.title ?? req.description?.slice(0, 60)}</div>)}
                   </div>
                 </Card>
               )}

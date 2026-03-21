@@ -5,9 +5,12 @@ import {
   proposalStrategies, proposalOutlines, proposalSections,
   reviewReports, priceProposals, templates, profiles,
 } from '@/lib/db/schema';
+import { requireRole } from '@/lib/auth/with-auth';
 
 export async function POST() {
   try {
+    const auth = await requireRole('super_admin');
+    if (auth instanceof NextResponse) return auth;
     const db = getDb();
 
     const [

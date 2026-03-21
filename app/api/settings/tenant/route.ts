@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { tenantSettingsRepository } from '@/lib/repositories/tenant-settings.repository';
+import { requireRole } from '@/lib/auth/with-auth';
 
+// 테넌트 설정 조회 (관리자만)
 export async function GET() {
   try {
+    const auth = await requireRole('admin');
+    if (auth instanceof NextResponse) return auth;
+
     const settings = await tenantSettingsRepository.get();
     return NextResponse.json({ success: true, data: settings });
   } catch {
@@ -13,8 +18,12 @@ export async function GET() {
   }
 }
 
+// 테넌트 설정 변경 (관리자만)
 export async function PUT(request: NextRequest) {
   try {
+    const auth = await requireRole('admin');
+    if (auth instanceof NextResponse) return auth;
+
     const body = await request.json();
     const { appName, logoUrl, primaryColor } = body as {
       appName?: string;
