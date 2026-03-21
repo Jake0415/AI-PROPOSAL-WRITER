@@ -146,8 +146,8 @@ export function VectorRegistrationPanel({ projectId, rfpFile, onStatusChange }: 
         {isCompleted && !isProcessing && displayResult && (
           <div className="grid grid-cols-2 gap-3">
             <ResultItem label="텍스트 청크" value={`${displayResult.chunkCount.toLocaleString()}개`} />
-            <ResultItem label="이미지 메타" value={`${(displayResult as unknown as { imageChunkCount?: number }).imageChunkCount ?? 0}개`} />
-            <ResultItem label="페이지 이미지" value={`${displayResult.pageCount}장`} />
+            <ResultItem label="추출 이미지" value={`${(displayResult as unknown as { extractedImageCount?: number }).extractedImageCount ?? 0}개`} />
+            <ResultItem label="이미지 벡터" value={`${(displayResult as unknown as { imageChunkCount?: number }).imageChunkCount ?? 0}개`} />
             <ResultItem label="임베딩 모델" value={displayResult.embeddingModel} />
             <ResultItem label="청크 사이즈" value={`${displayResult.chunkSizeTokens.toLocaleString()} 토큰`} />
             <ResultItem label="소요 시간" value={`${(displayResult.elapsedMs / 1000).toFixed(1)}초`} />
@@ -164,22 +164,16 @@ export function VectorRegistrationPanel({ projectId, rfpFile, onStatusChange }: 
 
         {/* 액션 버튼 */}
         <div className="flex gap-2">
-          {!isCompleted && !isProcessing && (
+          {!isCompleted && !isFailed && !isProcessing && (
             <Button onClick={startRegistration} className="gap-2">
               <Zap className="h-4 w-4" />
               벡터 생성
             </Button>
           )}
-          {isCompleted && !isProcessing && (
-            <Button variant="outline" size="sm" onClick={reRegister} className="gap-2">
-              <RotateCcw className="h-4 w-4" />
-              재등록
-            </Button>
-          )}
           {isFailed && !isProcessing && (
-            <Button variant="outline" onClick={startRegistration} className="gap-2">
+            <Button variant="outline" onClick={reRegister} className="gap-2">
               <RotateCcw className="h-4 w-4" />
-              재시도
+              재실행
             </Button>
           )}
         </div>

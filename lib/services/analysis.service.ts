@@ -1,5 +1,4 @@
 import { generateText, getActiveProvider, ensureProviderFromDb } from '@/lib/ai/client';
-import { DEFAULT_GPT_MODEL, isGpt5Model } from '@/lib/ai/models';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
 import { projectRepository } from '@/lib/repositories/project.repository';
 import { analysisStepRepository } from '@/lib/repositories/analysis-step.repository';
@@ -62,7 +61,7 @@ export async function runAnalysisStep(
 
     // RAG 검색 시도 (Qdrant 벡터 등록된 경우)
     let ragContext = '';
-    let visionImages: Array<{ base64: string }> = [];
+    let matchedImagePaths: string[] = [];
 
     if (rfpFile.vectorStatus === 'completed') {
       try {
@@ -70,16 +69,29 @@ export async function runAnalysisStep(
         const ragResult = await ragSearch(projectId, stepDef.label);
         ragContext = ragResult.chunks.map(c => c.text).join('\n\n');
 
-        // 이미지 메타데이터가 매칭되면 프롬프트에 설명 추가
+        // 이미지 메타데이터가 매칭되면 프롬프트에 설명 추가 + imagePath 수집
         if (ragResult.imageMatches.length > 0) {
           const imageDescriptions = ragResult.imageMatches.map(m =>
-            `[Page ${m.pageNumber} 이미지]: ${m.description} (키워드: ${m.keywords.join(', ')})`,
+            `[Page ${m.pageNumber} 이미지]: ${m.description}`,
           ).join('\n');
-          ragContext += '\n\n--- 관련 이미지 설명 ---\n' + imageDescriptions;
+          ragContext += '\n\n--- 관련 이미지 ---\n' + imageDescriptions;
+          matchedImagePaths = ragResult.imageMatches.map(m => m.imagePath).filter(Boolean);
         }
-
-        visionImages = ragResult.pageImages;
       } catch { /* RAG 실패 시 텍스트 폴백 */ }
+    }
+
+    // On-demand Vision: 매칭된 이미지를 GPT Vision으로 분석 (최대 3장)
+    if (matchedImagePaths.length > 0 && getActiveProvider() === 'gpt') {
+      try {
+        const { analyzeImagesOnDemand } = await import('@/lib/vector/pdf-image.service');
+        const visionResults = await analyzeImagesOnDemand(matchedImagePaths);
+        if (visionResults.length > 0) {
+          const visionDescriptions = visionResults.map(v =>
+            `[Vision 분석]: ${v.description} (키워드: ${v.keywords.join(', ')})`,
+          ).join('\n');
+          ragContext += '\n\n--- Vision 이미지 분석 결과 ---\n' + visionDescriptions;
+        }
+      } catch { /* Vision 실패 시 텍스트만 사용 */ }
     }
 
     // 프롬프트 구성
@@ -87,50 +99,17 @@ export async function runAnalysisStep(
     let userPrompt: string;
 
     if (ragContext) {
-      // RAG 모드: 검색된 청크만 전달 (rawText 없음)
       userPrompt = prompt.buildUserPrompt(ragContext, previousJson);
     } else {
-      // 폴백: rawText 축소 전달
       userPrompt = prompt.buildUserPrompt(rfpFile.rawText.slice(0, 20000), previousJson);
     }
 
-    // LLM 호출 (Vision 이미지 포함 가능)
-    let resultText: string;
-
-    if (visionImages.length > 0 && getActiveProvider() === 'gpt') {
-      // GPT + Vision: 이미지 첨부
-      const { getApiKey } = await import('@/lib/ai/client');
-      const OpenAI = (await import('openai')).default;
-      const apiKey = await getApiKey('gpt');
-      const client = new OpenAI({ apiKey });
-
-      const imageContent = visionImages.map(img => ({
-        type: 'image_url' as const,
-        image_url: { url: `data:image/png;base64,${img.base64}` },
-      }));
-
-      const visionModel = process.env.AI_MODEL_GPT ?? DEFAULT_GPT_MODEL;
-      const response = await client.chat.completions.create({
-        model: visionModel,
-        ...(isGpt5Model(visionModel)
-          ? { max_completion_tokens: prompt.maxTokens }
-          : { max_tokens: prompt.maxTokens }),
-        messages: [
-          { role: 'system', content: prompt.systemPrompt },
-          { role: 'user', content: [
-            { type: 'text', text: userPrompt },
-            ...imageContent,
-          ]},
-        ],
-      });
-      resultText = response.choices[0]?.message?.content ?? '';
-    } else {
-      resultText = await generateText({
-        systemPrompt: prompt.systemPrompt,
-        userPrompt,
-        maxTokens: prompt.maxTokens,
-      });
-    }
+    // LLM 호출
+    const resultText = await generateText({
+      systemPrompt: prompt.systemPrompt,
+      userPrompt,
+      maxTokens: prompt.maxTokens,
+    });
 
     // 결과 파싱
     const result = parseJson<Record<string, unknown>>(resultText, {});

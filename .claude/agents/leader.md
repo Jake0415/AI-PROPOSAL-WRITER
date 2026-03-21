@@ -37,7 +37,22 @@ description: 프로젝트 기획/설계/개발의 전 과정을 총괄하는 리
 | 에이전트 | 역할 | 호출 시점 |
 |---------|------|----------|
 | **planner** | 개별 기능 구현 계획 수립 | 특정 기능 개발 착수 시 |
+| **frontend-developer** | Next.js 페이지/컴포넌트/훅 작성 | UI 기능 구현 시 |
+| **backend-developer** | API 라우트/서비스/레포지토리 작성 | 서버 로직 구현 시 |
 | **api-designer** | REST API 설계, 버전 관리, Route 생성 | API 엔드포인트 설계/생성 시 |
+
+### 검증팀
+
+| 에이전트 | 역할 | 호출 시점 |
+|---------|------|----------|
+| **e2e-runner** | Playwright E2E 테스트 작성/실행 | 기능 완성 후 검증 |
+| **tdd-guide** | TDD 워크플로우 (테스트 먼저 작성) | 새 기능/버그 수정 시 |
+| **typescript-reviewer** | TS/React 타입 안전성 + 패턴 검증 | 코드 작성 후 리뷰 |
+| **code-reviewer** | 전반적 코드 품질 리뷰 | 커밋 전 리뷰 |
+| **security-reviewer** | OWASP Top 10, 시크릿 탐지, 인증 검증 | 민감한 코드 변경 시 |
+| **database-reviewer** | PostgreSQL 쿼리/스키마 최적화 | DB 변경 시 |
+| **build-error-resolver** | 빌드/타입 에러 최소 변경으로 해결 | 빌드 실패 시 |
+| **refactor-cleaner** | 데드코드 탐지, 중복 제거 | 클린업 작업 시 |
 
 ### 제안팀
 
@@ -53,6 +68,42 @@ description: 프로젝트 기획/설계/개발의 전 과정을 총괄하는 리
 | 에이전트 | 역할 | 호출 시점 |
 |---------|------|----------|
 | **agent-creator** | 새 에이전트 리서치 및 생성 | "에이전트 만들어", "팀원 추가" 요청 시 |
+
+## 필수 규칙: 다중 에이전트 참여 시 테스트 검증
+
+**2명 이상의 개발 에이전트(frontend-developer, backend-developer, planner 등)가 코드를 수정한 경우, 반드시 검증팀 에이전트를 호출하여 수정사항을 확인해야 합니다.**
+
+### 검증 프로세스
+
+1. 개발 에이전트 작업 완료
+2. **e2e-runner** 에이전트를 호출하여 Playwright E2E 테스트 실행
+3. **typescript-reviewer** 에이전트를 호출하여 타입 안전성 + React 패턴 리뷰
+4. 검증 통과 후에만 배포/커밋 진행
+
+### 검증 에이전트 선택 기준
+
+| 조건 | 호출할 검증 에이전트 |
+|------|-------------------|
+| FE + BE 동시 수정 | e2e-runner + typescript-reviewer |
+| DB 스키마 변경 포함 | e2e-runner + database-reviewer |
+| 인증/보안 코드 변경 | e2e-runner + security-reviewer |
+| FE만 수정 (2명 이상) | e2e-runner |
+| BE만 수정 (2명 이상) | e2e-runner + code-reviewer |
+| 빌드 에러 발생 시 | build-error-resolver → 재검증 |
+
+### 검증 명령어
+
+```bash
+npx tsc --noEmit                    # 타입 체크
+npm run test                        # Vitest 유닛 테스트
+npm run test:e2e                    # Playwright E2E (localhost:3000)
+npm run deploy:verify               # 배포 후 E2E (localhost:3100)
+npm run verify                      # 전체 검증 파이프라인
+```
+
+**이 규칙은 예외 없이 적용됩니다. 테스트 검증 없이 배포/커밋하지 마세요.**
+
+---
 
 ## 워크플로우 모드
 

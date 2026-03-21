@@ -30,8 +30,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# PDF→이미지 변환용 graphicsmagick + ghostscript + @opendataloader/pdf용 Java 11
-RUN apk add --no-cache graphicsmagick ghostscript openjdk11-jre
+# PDF→이미지 변환용 graphicsmagick + ghostscript + Java 11 + Python3 + PyMuPDF
+RUN apk add --no-cache graphicsmagick ghostscript openjdk11-jre python3 py3-pip \
+    && pip3 install --break-system-packages PyMuPDF
 ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk
 
 RUN addgroup --system --gid 1001 nodejs && \

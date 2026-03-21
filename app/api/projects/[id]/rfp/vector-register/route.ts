@@ -45,7 +45,6 @@ export async function POST(
           rfpFile.rawText,
           resolveFilePath(rfpFile.filePath),
           onProgress,
-          rfpFile.imagePages ?? [],
         );
         await rfpRepository.updateVectorStatus(projectId, 'completed');
         await projectRepository.updateStatus(projectId, 'vectorized');

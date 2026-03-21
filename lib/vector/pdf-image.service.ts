@@ -1,12 +1,7 @@
-import { mkdir } from 'fs/promises';
+import { readFile } from 'fs/promises';
 import path from 'path';
 import OpenAI from 'openai';
 import { DEFAULT_GPT_MODEL, isGpt5Model } from '@/lib/ai/models';
-
-export interface PageImage {
-  pageNumber: number;
-  imagePath: string;
-}
 
 export interface ImageMetadata {
   description: string;
@@ -15,92 +10,34 @@ export interface ImageMetadata {
   imagePath: string;
 }
 
-const MAX_IMAGE_PAGES = 20;
-const VISION_CONCURRENCY = 3;
+const MAX_ONDEMAND_IMAGES = 3;
 
 /**
- * PDF 전체 페이지를 PNG 이미지로 변환
+ * 이미지 파일을 base64로 변환
  */
-export async function convertPdfToImages(
-  pdfPath: string,
-  outputDir: string,
-): Promise<PageImage[]> {
-  await mkdir(outputDir, { recursive: true });
-
-  try {
-    const { fromPath } = await import('pdf2pic');
-    const converter = fromPath(pdfPath, {
-      density: 150,
-      saveFilename: 'page',
-      savePath: outputDir,
-      format: 'png',
-      width: 1200,
-      height: 1600,
-    });
-
-    const results = await converter.bulk(-1, { responseType: 'image' });
-    return results
-      .filter(r => r.path)
-      .map((r, i) => ({ pageNumber: i + 1, imagePath: r.path! }));
-  } catch (err) {
-    const message = err instanceof Error ? err.message : '';
-    if (message.includes('GraphicsMagick') || message.includes('gm')) {
-      return [];
-    }
-    throw err;
-  }
+export async function imageToBase64(imagePath: string): Promise<string> {
+  const buffer = await readFile(imagePath);
+  return buffer.toString('base64');
 }
 
 /**
- * 특정 페이지만 PNG 변환 (이미지/도표가 있는 페이지만)
+ * 프로젝트의 이미지 디렉토리 경로 (PyMuPDF 추출 이미지)
  */
-export async function convertSelectivePdfToImages(
-  pdfPath: string,
-  outputDir: string,
-  pageNumbers: number[],
-): Promise<PageImage[]> {
-  if (pageNumbers.length === 0) return [];
-
-  await mkdir(outputDir, { recursive: true });
-  const pages = pageNumbers.slice(0, MAX_IMAGE_PAGES);
-
-  try {
-    const { fromPath } = await import('pdf2pic');
-    const converter = fromPath(pdfPath, {
-      density: 150,
-      saveFilename: 'page',
-      savePath: outputDir,
-      format: 'png',
-      width: 1200,
-      height: 1600,
-    });
-
-    const results: PageImage[] = [];
-    for (const pageNum of pages) {
-      try {
-        const result = await converter(pageNum, { responseType: 'image' });
-        if (result.path) {
-          results.push({ pageNumber: pageNum, imagePath: result.path });
-        }
-      } catch { /* 개별 페이지 실패 무시 */ }
-    }
-    return results;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : '';
-    if (message.includes('GraphicsMagick') || message.includes('gm')) {
-      return [];
-    }
-    throw err;
+export function getPageImagesDir(projectId: string): string {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId)) {
+    throw new Error('Invalid project ID format');
   }
+  return path.join(process.cwd(), 'data', 'uploads', projectId, 'images');
 }
 
 /**
- * GPT Vision으로 이미지 설명 + 키워드 생성
+ * On-demand Vision 분석: 단일 이미지를 GPT Vision으로 분석
+ * RFP 분석 시 RAG 검색에서 매칭된 이미지에 대해서만 호출
  */
-export async function generateImageMetadata(
-  imagePath: string,
-  pageNumber: number,
-): Promise<ImageMetadata> {
+export async function analyzeImageOnDemand(imagePath: string): Promise<{
+  description: string;
+  keywords: string[];
+}> {
   const base64 = await imageToBase64(imagePath);
   const { getApiKey } = await import('@/lib/ai/client');
   const apiKey = await getApiKey('gpt');
@@ -132,66 +69,29 @@ export async function generateImageMetadata(
     return {
       description: parsed.description ?? '설명 없음',
       keywords: Array.isArray(parsed.keywords) ? parsed.keywords : [],
-      pageNumber,
-      imagePath,
     };
   } catch {
-    return {
-      description: '이미지 분석 실패',
-      keywords: [],
-      pageNumber,
-      imagePath,
-    };
+    return { description: '이미지 분석 실패', keywords: [] };
   }
 }
 
 /**
- * 여러 이미지의 메타데이터를 병렬 생성 (동시 3개)
+ * 여러 이미지를 on-demand Vision 분석 (최대 3장)
  */
-export async function generateBatchImageMetadata(
-  pageImages: PageImage[],
-  onProgress?: (completed: number, total: number) => void,
-): Promise<ImageMetadata[]> {
-  const results: ImageMetadata[] = [];
-  const total = pageImages.length;
+export async function analyzeImagesOnDemand(
+  imagePaths: string[],
+): Promise<Array<{ imagePath: string; description: string; keywords: string[] }>> {
+  const targets = imagePaths.slice(0, MAX_ONDEMAND_IMAGES);
+  const results: Array<{ imagePath: string; description: string; keywords: string[] }> = [];
 
-  for (let i = 0; i < total; i += VISION_CONCURRENCY) {
-    const batch = pageImages.slice(i, i + VISION_CONCURRENCY);
-    const batchResults = await Promise.allSettled(
-      batch.map(img => generateImageMetadata(img.imagePath, img.pageNumber)),
-    );
-
-    for (const r of batchResults) {
-      if (r.status === 'fulfilled') results.push(r.value);
+  for (const imgPath of targets) {
+    try {
+      const analysis = await analyzeImageOnDemand(imgPath);
+      results.push({ imagePath: imgPath, ...analysis });
+    } catch {
+      results.push({ imagePath: imgPath, description: '분석 실패', keywords: [] });
     }
-    onProgress?.(Math.min(i + VISION_CONCURRENCY, total), total);
   }
 
   return results;
-}
-
-/**
- * 이미지 파일을 base64로 변환 (GPT Vision용)
- */
-export async function imageToBase64(imagePath: string): Promise<string> {
-  const { readFile } = await import('fs/promises');
-  const buffer = await readFile(imagePath);
-  return buffer.toString('base64');
-}
-
-/**
- * UUID 형식 검증 (Path Traversal 방어)
- */
-function validateUUID(id: string): void {
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-    throw new Error('Invalid project ID format');
-  }
-}
-
-/**
- * 프로젝트의 페이지 이미지 디렉토리 경로
- */
-export function getPageImagesDir(projectId: string): string {
-  validateUUID(projectId);
-  return path.join(process.cwd(), 'data', 'uploads', projectId, 'pages');
 }

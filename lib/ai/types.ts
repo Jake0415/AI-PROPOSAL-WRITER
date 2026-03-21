@@ -91,6 +91,17 @@ export interface RfpAnalysisResult {
     duration: string;
     summary: string;
     purpose?: string;
+    background?: string;
+    supervisingOrg?: string;
+    contractType?: string;
+    bidMethod?: string;
+    deliveryLocation?: string;
+    stakeholders?: string[];
+    relatedSystems?: string[];
+    priorProjects?: string;
+    subcontractPolicy?: string;
+    securityLevel?: string;
+    specialConditions?: string[];
   };
   evaluationItems: EvaluationItem[];
   requirements: StructuredRequirement[];

@@ -121,12 +121,37 @@ export const rfpFiles = aiprowriterSchema.table('rfp_files', {
   index('rfp_files_project_id_idx').on(table.projectId),
 ]);
 
+// ─── RFP Image Metadata ─────────────────────────────────────
+
+export const rfpImageMetadata = aiprowriterSchema.table('rfp_image_metadata', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  pageNumber: integer('page_number').notNull(),
+  imageIndex: integer('image_index').notNull().default(0),
+  imageType: text('image_type').$type<'element' | 'page_full'>().notNull(),
+  imagePath: text('image_path').notNull(),
+  width: integer('width'),
+  height: integer('height'),
+  description: text('description'),
+  keywords: jsonb('keywords').$type<string[]>().default([]),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('rfp_image_metadata_project_idx').on(table.projectId),
+]);
+
 // ─── RFP Analysis ───────────────────────────────────────────
 
 export const rfpAnalyses = aiprowriterSchema.table('rfp_analyses', {
   id: uuid('id').defaultRandom().primaryKey(),
   projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  overview: jsonb('overview').$type<{ projectName: string; client: string; budget: string; duration: string; summary: string; purpose?: string }>().notNull().default({ projectName: '', client: '', budget: '', duration: '', summary: '' }),
+  overview: jsonb('overview').$type<{
+    projectName: string; client: string; budget: string; duration: string;
+    summary: string; purpose?: string; background?: string;
+    supervisingOrg?: string; contractType?: string; bidMethod?: string;
+    deliveryLocation?: string; stakeholders?: string[]; relatedSystems?: string[];
+    priorProjects?: string; subcontractPolicy?: string; securityLevel?: string;
+    specialConditions?: string[];
+  }>().notNull().default({ projectName: '', client: '', budget: '', duration: '', summary: '' }),
   requirements: jsonb('requirements').$type<StructuredRequirement[]>().notNull().default([]),
   evaluationCriteria: jsonb('evaluation_criteria').$type<EvaluationCriterion[]>().notNull().default([]),
   evaluationItems: jsonb('evaluation_items').$type<EvaluationItem[]>().notNull().default([]),

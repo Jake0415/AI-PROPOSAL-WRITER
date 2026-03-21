@@ -285,10 +285,10 @@ export default function UploadPage() {
                   {uploadStatus === 'processing' ? (
                     <><Loader2 className="h-4 w-4 animate-spin text-primary" />서버에서 텍스트 추출 및 저장 중...</>
                   ) : (
-                    <><Upload className="h-4 w-4 text-primary" />업로드 중... {uploadProgress}%</>
+                    <><Loader2 className="h-4 w-4 animate-spin text-primary" />서버에 파일을 업로드 중.....</>
                   )}
                 </div>
-                <Progress value={uploadStatus === 'processing' ? 100 : uploadProgress} className="h-2" />
+                <Progress value={uploadStatus === 'processing' ? 100 : uploadProgress} className="h-2 transition-all duration-1000 ease-out" />
               </div>
             )}
           </CardHeader>

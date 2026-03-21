@@ -148,13 +148,43 @@ export default function AnalysisPage() {
               <div className="px-6 pb-6 space-y-2 text-sm">
                 <div><span className="font-medium">사업명:</span> {analysis.overview?.projectName}</div>
                 <div><span className="font-medium">발주기관:</span> {analysis.overview?.client}</div>
+                {analysis.overview?.supervisingOrg && analysis.overview.supervisingOrg !== '미기재' && (
+                  <div><span className="font-medium">감독기관:</span> {analysis.overview.supervisingOrg}</div>
+                )}
                 <div><span className="font-medium">예산:</span> {analysis.overview?.budget}</div>
                 <div><span className="font-medium">기간:</span> {analysis.overview?.duration}</div>
+                {analysis.overview?.contractType && analysis.overview.contractType !== '미기재' && (
+                  <div><span className="font-medium">계약유형:</span> {analysis.overview.contractType}</div>
+                )}
+                {analysis.overview?.bidMethod && analysis.overview.bidMethod !== '미기재' && (
+                  <div><span className="font-medium">입찰방식:</span> {analysis.overview.bidMethod}</div>
+                )}
                 {analysis.overview?.purpose && (
                   <div><span className="font-medium">목적:</span> {analysis.overview.purpose}</div>
                 )}
+                {analysis.overview?.background && analysis.overview.background !== '미기재' && (
+                  <>
+                    <Separator className="my-3" />
+                    <div><span className="font-medium">사업 배경:</span> {analysis.overview.background}</div>
+                  </>
+                )}
                 <Separator className="my-3" />
                 <p className="text-muted-foreground">{analysis.overview?.summary}</p>
+                {analysis.overview?.deliveryLocation && analysis.overview.deliveryLocation !== '미기재' && (
+                  <div className="pt-2"><span className="font-medium">납품장소:</span> {analysis.overview.deliveryLocation}</div>
+                )}
+                {(analysis.overview?.relatedSystems ?? []).length > 0 && (
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    <span className="font-medium mr-1">연계시스템:</span>
+                    {(analysis.overview?.relatedSystems ?? []).map((sys, i) => <Badge key={i} variant="outline" className="text-xs">{sys}</Badge>)}
+                  </div>
+                )}
+                {(analysis.overview?.specialConditions ?? []).length > 0 && (
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    <span className="font-medium mr-1">특수조건:</span>
+                    {(analysis.overview?.specialConditions ?? []).map((cond, i) => <Badge key={i} variant="secondary" className="text-xs">{cond}</Badge>)}
+                  </div>
+                )}
               </div>
             </Card>
             {analysis.keywords?.length > 0 && (

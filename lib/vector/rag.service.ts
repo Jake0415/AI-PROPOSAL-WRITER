@@ -1,6 +1,4 @@
 import { v4 as uuidv4 } from 'uuid';
-import { readFile } from 'fs/promises';
-import path from 'path';
 import {
   ensureCollection,
   deleteCollection,
@@ -9,25 +7,20 @@ import {
   getCollectionName,
 } from './qdrant-client';
 import { splitTextIntoChunks, createEmbeddingsWithProgress, createEmbedding } from './embedding.service';
-import {
-  convertSelectivePdfToImages,
-  convertPdfToImages,
-  generateBatchImageMetadata,
-  getPageImagesDir,
-} from './pdf-image.service';
+import { extractImagesWithPyMuPDF } from './pymupdf-extractor';
+import { imageMetadataRepository } from '@/lib/repositories/image-metadata.repository';
+import { getPageImagesDir } from './pdf-image.service';
 import type { SSEProgress } from '@/lib/utils/sse-stream';
-import type { ImageMetadata } from './pdf-image.service';
 
 export interface RagSearchResult {
   chunks: Array<{ text: string; pageNumber: number; score: number }>;
-  imageMatches: Array<{ pageNumber: number; description: string; keywords: string[]; score: number }>;
-  pageImages: Array<{ pageNumber: number; base64: string }>;
+  imageMatches: Array<{ pageNumber: number; description: string; keywords: string[]; imagePath: string; score: number }>;
 }
 
 export interface VectorRegistrationResult {
   chunkCount: number;
+  extractedImageCount: number;
   imageChunkCount: number;
-  pageCount: number;
   elapsedMs: number;
   embeddingModel: string;
   chunkSizeTokens: number;
@@ -38,22 +31,20 @@ const VECTOR_STEPS = [
   '텍스트 청크 분할',
   '임베딩 생성',
   '텍스트 벡터 저장',
-  '이미지 페이지 변환',
-  '이미지 메타데이터 생성',
-  '이미지 벡터 저장',
+  '개별 이미지 추출 (PyMuPDF)',
+  '이미지 메타 벡터 저장',
   '완료',
 ];
 
 /**
  * PDF를 벡터화하여 Qdrant에 등록
- * 8단계 SSE 스트리밍: 텍스트 청크 + 이미지 메타데이터
+ * 7단계 SSE: 텍스트 벡터화 + PyMuPDF 이미지 추출 + 메타 벡터화
  */
 export async function registerVectors(
   projectId: string,
   rawText: string,
   pdfPath: string,
   onProgress?: (p: SSEProgress) => void,
-  imagePages?: number[],
 ): Promise<VectorRegistrationResult> {
   const startTime = Date.now();
   const collectionName = getCollectionName(projectId);
@@ -78,20 +69,20 @@ export async function registerVectors(
   // Step 1: 텍스트 청크 분할
   progress(1);
   const chunks = splitTextIntoChunks(rawText);
-  progress(1, `${chunks.length}개 청크 생성됨`, 12);
+  progress(1, `${chunks.length}개 청크 생성됨`, 15);
 
-  // Step 2: 임베딩 생성 (배치별 진행률)
-  progress(2, `0/${chunks.length} 청크`, 15);
+  // Step 2: 임베딩 생성
+  progress(2, `0/${chunks.length} 청크`, 18);
   const embeddings = await createEmbeddingsWithProgress(
     chunks.map(c => c.text),
     (completed, total) => {
-      const pct = 15 + Math.round((completed / total) * 20); // 15-35%
+      const pct = 18 + Math.round((completed / total) * 25);
       progress(2, `${completed}/${total} 청크`, pct);
     },
   );
 
-  // Step 3: 텍스트 벡터 저장 (배치별 진행률)
-  progress(3, `0/${chunks.length} 포인트`, 35);
+  // Step 3: 텍스트 벡터 저장
+  progress(3, `0/${chunks.length} 포인트`, 43);
   const textPoints = chunks.map((chunk, i) => ({
     id: uuidv4(),
     vector: embeddings[i],
@@ -108,73 +99,70 @@ export async function registerVectors(
   for (let i = 0; i < textPoints.length; i += BATCH) {
     await upsertPoints(collectionName, textPoints.slice(i, i + BATCH));
     const completed = Math.min(i + BATCH, textPoints.length);
-    const pct = 35 + Math.round((completed / textPoints.length) * 15); // 35-50%
+    const pct = 43 + Math.round((completed / textPoints.length) * 17);
     progress(3, `${completed}/${textPoints.length} 포인트`, pct);
   }
 
-  // Step 4: 이미지 페이지 변환 (선택적)
-  progress(4, '', 50);
-  const pagesDir = getPageImagesDir(projectId);
-  const hasImagePages = imagePages && imagePages.length > 0;
+  // Step 4: PyMuPDF 개별 이미지 추출 + DB 저장
+  progress(4, 'PyMuPDF 이미지 추출 중', 60);
+  const extractedImages = await extractImagesWithPyMuPDF(pdfPath, projectId);
+  progress(4, `${extractedImages.length}개 이미지 추출됨`, 68);
 
-  const pageImages = hasImagePages
-    ? await convertSelectivePdfToImages(pdfPath, pagesDir, imagePages)
-    : await convertPdfToImages(pdfPath, pagesDir);
-
-  progress(4, `${pageImages.length}장 변환 완료`, 60);
-
-  // Step 5: 이미지 메타데이터 생성 (GPT Vision)
-  let imageMetadataList: ImageMetadata[] = [];
-  if (pageImages.length > 0 && hasImagePages) {
-    progress(5, `0/${pageImages.length}장 분석 중`, 60);
-    imageMetadataList = await generateBatchImageMetadata(
-      pageImages,
-      (completed, total) => {
-        const pct = 60 + Math.round((completed / total) * 20); // 60-80%
-        progress(5, `${completed}/${total}장 분석 완료`, pct);
-      },
+  // DB 메타데이터 저장
+  await imageMetadataRepository.deleteByProjectId(projectId);
+  if (extractedImages.length > 0) {
+    await imageMetadataRepository.bulkCreate(
+      extractedImages.map(img => ({
+        projectId,
+        pageNumber: img.page,
+        imageIndex: img.index,
+        imageType: 'element' as const,
+        imagePath: img.path,
+        width: img.width,
+        height: img.height,
+      })),
     );
-  } else {
-    progress(5, '이미지 페이지 없음 (스킵)', 80);
   }
+  progress(4, `${extractedImages.length}개 DB 저장`, 72);
 
-  // Step 6: 이미지 벡터 저장
+  // Step 5: 이미지 메타 임베딩 → Qdrant 저장
   let imageChunkCount = 0;
-  if (imageMetadataList.length > 0) {
-    progress(6, `${imageMetadataList.length}개 이미지 벡터화`, 80);
+  if (extractedImages.length > 0) {
+    progress(5, `${extractedImages.length}개 벡터화`, 72);
 
-    const descriptions = imageMetadataList.map(m =>
-      `${m.description} ${m.keywords.join(' ')}`,
+    // 메타정보 기반 임베딩 (Vision 없이)
+    const metaTexts = extractedImages.map(img =>
+      `page ${img.page} image: ${img.width}x${img.height} ${img.filename}`,
     );
-    const imageEmbeddings = await createEmbeddingsWithProgress(descriptions);
+    const imageEmbeddings = await createEmbeddingsWithProgress(metaTexts);
 
-    const imagePoints = imageMetadataList.map((meta, i) => ({
+    const imagePoints = extractedImages.map((img, i) => ({
       id: uuidv4(),
       vector: imageEmbeddings[i],
       payload: {
         type: 'image' as const,
-        description: meta.description,
-        keywords: meta.keywords,
-        pageNumber: meta.pageNumber,
-        imagePath: meta.imagePath,
+        description: `Page ${img.page} 이미지 (${img.width}x${img.height})`,
+        keywords: [] as string[],
+        pageNumber: img.page,
+        imagePath: img.path,
         projectId,
       },
     }));
 
     await upsertPoints(collectionName, imagePoints);
     imageChunkCount = imagePoints.length;
-    progress(6, `${imageChunkCount}개 저장 완료`, 90);
+    progress(5, `${imageChunkCount}개 저장 완료`, 90);
   } else {
-    progress(6, '스킵', 90);
+    progress(5, '이미지 없음 (스킵)', 90);
   }
 
-  // Step 7: 완료
-  progress(7, '', 100);
+  // Step 6: 완료
+  progress(6, '', 100);
 
   return {
     chunkCount: chunks.length,
+    extractedImageCount: extractedImages.length,
     imageChunkCount,
-    pageCount: pageImages.length,
     elapsedMs: Date.now() - startTime,
     embeddingModel: 'text-embedding-3-small',
     chunkSizeTokens: 2048,
@@ -182,7 +170,8 @@ export async function registerVectors(
 }
 
 /**
- * RAG 검색: 텍스트 청크 + 이미지 매칭 + 페이지 이미지 반환
+ * RAG 검색: 텍스트 청크 + 이미지 메타 매칭
+ * Vision 분석은 여기서 하지 않음 (analysis.service에서 on-demand)
  */
 export async function ragSearch(
   projectId: string,
@@ -203,6 +192,7 @@ export async function ragSearch(
         pageNumber: (r.payload.pageNumber as number) ?? 0,
         description: (r.payload.description as string) ?? '',
         keywords: (r.payload.keywords as string[]) ?? [],
+        imagePath: (r.payload.imagePath as string) ?? '',
         score: r.score,
       });
     } else {
@@ -214,28 +204,5 @@ export async function ragSearch(
     }
   }
 
-  // text + image 양쪽에서 페이지 번호 수집 (최대 5장)
-  const pageNumbers = [
-    ...new Set([
-      ...textChunks.map(c => c.pageNumber).filter(p => p > 0),
-      ...imageMatches.map(m => m.pageNumber).filter(p => p > 0),
-    ]),
-  ].slice(0, 5);
-
-  // 페이지 이미지 로드 (base64)
-  const pagesDir = getPageImagesDir(projectId);
-  const pageImages: Array<{ pageNumber: number; base64: string }> = [];
-
-  for (const pageNum of pageNumbers) {
-    try {
-      const imagePath = path.join(pagesDir, `page.${pageNum}.png`);
-      const buffer = await readFile(imagePath);
-      pageImages.push({
-        pageNumber: pageNum,
-        base64: buffer.toString('base64'),
-      });
-    } catch { /* 이미지 없으면 무시 */ }
-  }
-
-  return { chunks: textChunks, imageMatches, pageImages };
+  return { chunks: textChunks, imageMatches };
 }
