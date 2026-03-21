@@ -77,8 +77,9 @@ export async function POST(
     // 파일명 새니타이징
     const safeName = sanitizeFileName(file.name);
 
-    // 텍스트 추출
+    // 텍스트 추출 (null 바이트 제거 — PostgreSQL text 호환)
     const parsed = await parseRfpFile(buffer, fileType);
+    const rawText = parsed.text.replace(/\0/g, '');
 
     // 파일시스템에 저장
     const uploadDir = path.join(process.cwd(), 'data', 'uploads', projectId);
@@ -93,7 +94,7 @@ export async function POST(
       fileType,
       filePath,
       fileSize: file.size,
-      rawText: parsed.text,
+      rawText,
     });
 
     return NextResponse.json({
