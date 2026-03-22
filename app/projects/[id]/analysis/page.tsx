@@ -86,7 +86,7 @@ export default function AnalysisPage() {
         </div>
         {analysis && (
           <div className="flex items-center gap-2">
-            <AiChatPanel projectId={projectId} userId="anonymous" topic="rfp-analysis" />
+            <AiChatPanel projectId={projectId} />
             <CoachingButton projectId={projectId} stepKey="analysis" />
             <Button onClick={() => router.push(`/projects/${projectId}/direction`)}>
               다음: 방향성 설정

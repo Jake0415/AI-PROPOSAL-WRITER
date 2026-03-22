@@ -47,6 +47,7 @@ export async function searchPoints(
   queryVector: number[],
   limit = 10,
   filter?: Record<string, unknown>,
+  scoreThreshold = 0.4,
 ) {
   const client = getQdrantClient();
   return client.search(collectionName, {
@@ -54,7 +55,23 @@ export async function searchPoints(
     limit,
     with_payload: true,
     filter: filter as never,
+    score_threshold: scoreThreshold,
   });
+}
+
+export async function scrollPoints(
+  collectionName: string,
+  filter?: Record<string, unknown>,
+  limit = 500,
+) {
+  const client = getQdrantClient();
+  const result = await client.scroll(collectionName, {
+    limit,
+    with_payload: true,
+    with_vector: false,
+    filter: filter as never,
+  });
+  return result.points;
 }
 
 export function getCollectionName(projectId: string): string {

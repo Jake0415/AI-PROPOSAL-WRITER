@@ -8,6 +8,7 @@ import { REVIEW_SYSTEM_PROMPT, buildReviewPrompt } from './review-generation';
 import { PRICE_SYSTEM_PROMPT, buildPricePrompt } from './price-generation';
 import { COACHING_SYSTEM_PROMPT, buildCoachingPrompt } from './coaching';
 import { COMPETITIVE_ANALYSIS_SYSTEM_PROMPT, buildCompetitiveAnalysisPrompt } from './competitive-analysis';
+import { RFP_ASK_SYSTEM, buildRfpAskPrompt } from './rfp-ask';
 import {
   STEP1_SYSTEM, buildStep1Prompt,
   STEP2_SYSTEM, buildStep2Prompt,
@@ -136,6 +137,11 @@ export const DEFAULT_PROMPTS: Record<string, DefaultPromptDef> = {
     slug: 'rfp-step7-chapters', name: 'Step 7: 권장 목차 + 키워드',
     description: '전체 분석 종합하여 최적 목차 구성, 핵심 키워드 추출',
     category: 'analysis', systemPrompt: STEP7_SYSTEM, maxTokens: 4096, buildUserPrompt: buildStep7Prompt,
+  },
+  'rfp-ask': {
+    slug: 'rfp-ask', name: 'RFP 질의응답',
+    description: 'RAG 기반 RFP 자유 질의응답 챗봇. 사용자가 제안서에 대해 자유롭게 질문하면 관련 내용을 찾아 답변',
+    category: 'coaching', systemPrompt: RFP_ASK_SYSTEM, maxTokens: 4096, buildUserPrompt: buildRfpAskPrompt,
   },
 };
 

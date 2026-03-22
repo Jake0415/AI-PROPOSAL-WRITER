@@ -13,19 +13,26 @@ export const imageMetadataRepository = {
     projectId: string;
     pageNumber: number;
     imageIndex: number;
-    imageType: 'element' | 'page_full';
+    imageType: 'element' | 'page_render';
     imagePath: string;
     width?: number;
     height?: number;
     description?: string;
     keywords?: string[];
+    filterStatus?: 'keep' | 'skip' | 'auto_skip' | 'pending';
+    filterReason?: string;
   }>) {
     if (items.length === 0) return [];
     const db = getDb();
     return db.insert(rfpImageMetadata).values(items).returning();
   },
 
-  async updateMetadata(id: string, data: { description?: string; keywords?: string[] }) {
+  async updateMetadata(id: string, data: {
+    description?: string;
+    keywords?: string[];
+    filterStatus?: 'keep' | 'skip' | 'auto_skip' | 'pending';
+    filterReason?: string;
+  }) {
     const db = getDb();
     await db.update(rfpImageMetadata)
       .set(data)

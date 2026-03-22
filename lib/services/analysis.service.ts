@@ -63,10 +63,13 @@ export async function runAnalysisStep(
     let ragContext = '';
     let matchedImagePaths: string[] = [];
 
-    if (rfpFile.vectorStatus === 'completed') {
+    // Step 1(사업 개요)은 RFP 앞부분에 항상 존재 → rawText 직접 전달 (RAG 검색 부정확 방지)
+    if (stepNumber === 1) {
+      ragContext = rfpFile.rawText.slice(0, 20000);
+    } else if (rfpFile.vectorStatus === 'completed') {
       try {
         const { ragSearch } = await import('@/lib/vector/rag.service');
-        const ragResult = await ragSearch(projectId, stepDef.label);
+        const ragResult = await ragSearch(projectId, stepDef.searchQuery ?? stepDef.label);
         ragContext = ragResult.chunks.map(c => c.text).join('\n\n');
 
         // 이미지 메타데이터가 매칭되면 프롬프트에 설명 추가 + imagePath 수집

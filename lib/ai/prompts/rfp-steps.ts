@@ -1,14 +1,21 @@
 // 7단계 RFP 분석 프롬프트
 
 export const RFP_STEP_DEFINITIONS = [
-  { stepNumber: 1, slug: 'rfp-step1-overview', name: 'Step 1: 사업 개요', label: '사업 개요 파악' },
-  { stepNumber: 2, slug: 'rfp-step2-evaluation', name: 'Step 2: 평가항목', label: '평가항목 추출 + 배점 검증' },
-  { stepNumber: 3, slug: 'rfp-step3-requirements', name: 'Step 3: 요구사항', label: '요구사항 도출 (7개 카테고리)' },
-  { stepNumber: 4, slug: 'rfp-step4-traceability', name: 'Step 4: 추적성', label: '추적성 매트릭스 생성' },
-  { stepNumber: 5, slug: 'rfp-step5-qualifications', name: 'Step 5: 자격요건', label: '자격요건/범위/제약' },
-  { stepNumber: 6, slug: 'rfp-step6-strategy', name: 'Step 6: 배점 전략', label: '배점 전략 분석' },
-  { stepNumber: 7, slug: 'rfp-step7-chapters', name: 'Step 7: 배분 가이드', label: '배점 배분 가이드 + 키워드' },
-] as const;
+  { stepNumber: 1, slug: 'rfp-step1-overview', name: 'Step 1: 사업 개요', label: '사업 개요 파악',
+    searchQuery: '사업명 발주기관 예산 사업비 기간 목적 배경 계약 입찰 하도급 보안 납품' },
+  { stepNumber: 2, slug: 'rfp-step2-evaluation', name: 'Step 2: 평가항목', label: '평가항목 추출 + 배점 검증',
+    searchQuery: '평가항목 배점 기술평가 가격평가 배점표 평가기준 가중치 점수 채점' },
+  { stepNumber: 3, slug: 'rfp-step3-requirements', name: 'Step 3: 요구사항', label: '요구사항 도출 (7개 카테고리)',
+    searchQuery: '요구사항 기능 성능 보안 데이터 인터페이스 품질 구축 개발 운영 시스템' },
+  { stepNumber: 4, slug: 'rfp-step4-traceability', name: 'Step 4: 추적성', label: '추적성 매트릭스 생성',
+    searchQuery: '요구사항 평가항목 매핑 추적성 제안서 목차 챕터 구성' },
+  { stepNumber: 5, slug: 'rfp-step5-qualifications', name: 'Step 5: 자격요건', label: '자격요건/범위/제약',
+    searchQuery: '입찰 참가자격 사업자 등록 실적 하도급 하자보수 납기 범위 제약 보안등급' },
+  { stepNumber: 6, slug: 'rfp-step6-strategy', name: 'Step 6: 배점 전략', label: '배점 전략 분석',
+    searchQuery: '배점 전략 고배점 차별화 경쟁력 핵심 강점 제안 방향 수주' },
+  { stepNumber: 7, slug: 'rfp-step7-chapters', name: 'Step 7: 배분 가이드', label: '배점 배분 가이드 + 키워드',
+    searchQuery: '목차 구성 챕터 페이지 배분 키워드 핵심 용어 기술 제안서 작성' },
+];
 
 // ─── 공통 분석 원칙 ───────────────────────────────────────────
 const COMMON_PRINCIPLES = `

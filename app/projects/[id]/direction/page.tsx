@@ -85,7 +85,7 @@ export default function DirectionPage() {
         <div className="flex items-center gap-2">
           {candidates.length > 0 && (
             <>
-              <AiChatPanel projectId={projectId} userId="anonymous" topic="direction-coaching" />
+              <AiChatPanel projectId={projectId} />
               <CoachingButton projectId={projectId} stepKey="direction" />
             </>
           )}

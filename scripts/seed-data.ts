@@ -68,7 +68,7 @@ async function seedData() {
         const gptKey = (openaiKey && !openaiKey.startsWith('your-')) ? encrypt(openaiKey) : undefined;
         await db.insert(schema.aiSettings).values({
           id: 'default',
-          provider: 'claude',
+          provider: (process.env.AI_PROVIDER?.toLowerCase() === 'gpt' || process.env.AI_PROVIDER?.toLowerCase() === 'openai') ? 'gpt' : 'claude',
           claudeModel: 'claude-sonnet-4-6',
           gptModel: 'gpt-5.4-mini',
           ...(claudeKey && { claudeApiKey: claudeKey }),

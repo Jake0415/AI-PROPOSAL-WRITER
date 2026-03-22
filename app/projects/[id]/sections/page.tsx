@@ -161,7 +161,7 @@ export default function SectionsPage() {
           )}
           {sections.length > 0 && (
             <>
-              <AiChatPanel projectId={projectId} userId="anonymous" topic="section-editing" />
+              <AiChatPanel projectId={projectId} />
               <CoachingButton projectId={projectId} stepKey="outline" />
               <Button
                 onClick={() => router.push(`/projects/${projectId}/output`)}

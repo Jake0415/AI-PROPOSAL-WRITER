@@ -58,7 +58,7 @@ export default function StrategyPage() {
         <div className="flex items-center gap-2">
           {strategy && (
             <>
-              <AiChatPanel projectId={projectId} userId="anonymous" topic="strategy-coaching" />
+              <AiChatPanel projectId={projectId} />
               <CoachingButton projectId={projectId} stepKey="strategy" />
             </>
           )}

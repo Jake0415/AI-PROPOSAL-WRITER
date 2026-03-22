@@ -129,7 +129,14 @@ export function AnalysisStepRunner({ projectId, onComplete }: AnalysisStepRunner
       </div>
 
       {error && (
-        <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3">{error}</div>
+        <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3">
+          {error}
+          {error.includes('AI_KEY_ERROR') && (
+            <a href="/settings" className="block mt-2 text-xs underline text-primary">
+              설정 &gt; AI 키 관리에서 API 키를 확인하세요
+            </a>
+          )}
+        </div>
       )}
 
       {/* 7단계 스테퍼 */}

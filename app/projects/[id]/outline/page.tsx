@@ -165,7 +165,7 @@ export default function OutlinePage() {
                 <Sparkles className="mr-1 h-3 w-3" />
                 재생성
               </Button>
-              <AiChatPanel projectId={projectId} userId="anonymous" topic="outline-coaching" />
+              <AiChatPanel projectId={projectId} />
               <CoachingButton projectId={projectId} stepKey="outline" />
               <Button onClick={() => router.push(`/projects/${projectId}/sections`)}>
                 다음: 내용 생성

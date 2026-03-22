@@ -33,9 +33,8 @@ export function getActiveProvider(): AiProvider {
   return 'claude';
 }
 
-/** DB에서 활성 프로바이더를 로드하여 런타임에 반영 */
+/** DB에서 활성 프로바이더를 로드하여 런타임에 반영 (매 호출 시 DB 조회) */
 export async function ensureProviderFromDb(): Promise<AiProvider> {
-  if (_runtimeProvider) return _runtimeProvider;
   try {
     const settings = await settingsRepository.getAiSettings();
     if (settings?.provider) {
@@ -52,16 +51,27 @@ function getProvider(providerName?: AiProvider): AiProviderInterface {
   return providers[name];
 }
 
-// 통합 텍스트 생성 (DB 프로바이더 자동 로드)
+// API 키 사전검증
+async function validateApiKey(): Promise<void> {
+  const provider = getActiveProvider();
+  const key = await getApiKey(provider);
+  if (!key) {
+    throw new Error(`AI_KEY_ERROR: ${provider === 'claude' ? 'Claude' : 'GPT'} API 키가 설정되지 않았습니다. 설정 > AI 키 관리에서 키를 입력하세요.`);
+  }
+}
+
+// 통합 텍스트 생성 (DB 프로바이더 자동 로드 + 키 검증)
 export async function generateText(options: GenerateOptions): Promise<string> {
   await ensureProviderFromDb();
+  await validateApiKey();
   const provider = getProvider();
   return provider.generateText(options);
 }
 
-// 통합 스트리밍 생성 (DB 프로바이더 자동 로드)
+// 통합 스트리밍 생성 (DB 프로바이더 자동 로드 + 키 검증)
 export async function* generateStream(options: GenerateOptions): AsyncGenerator<string> {
   await ensureProviderFromDb();
+  await validateApiKey();
   const provider = getProvider();
   yield* provider.generateStream(options);
 }

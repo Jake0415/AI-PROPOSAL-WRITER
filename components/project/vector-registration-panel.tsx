@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Database, Loader2, RotateCcw, CheckCircle2, XCircle, Zap } from 'lucide-react';
+import { Database, Loader2, RotateCcw, CheckCircle2, XCircle, Zap, Eye } from 'lucide-react';
 import { useSSE } from '@/lib/hooks/use-sse';
 import type { VectorRegistrationResult } from '@/lib/vector/rag.service';
+import { ChunkViewerDialog } from './chunk-viewer-dialog';
+import { ImageViewerDialog } from './image-viewer-dialog';
 
 interface RfpFileInfo {
   fileName: string;
@@ -23,6 +25,8 @@ interface VectorRegistrationPanelProps {
 export function VectorRegistrationPanel({ projectId, rfpFile, onStatusChange }: VectorRegistrationPanelProps) {
   const sse = useSSE<VectorRegistrationResult>();
   const [savedResult, setSavedResult] = useState<VectorRegistrationResult | null>(null);
+  const [showChunks, setShowChunks] = useState(false);
+  const [showImages, setShowImages] = useState(false);
 
   // localStorage에서 이전 결과 로드
   useEffect(() => {
@@ -145,9 +149,10 @@ export function VectorRegistrationPanel({ projectId, rfpFile, onStatusChange }: 
         {/* 완료: 결과 요약 */}
         {isCompleted && !isProcessing && displayResult && (
           <div className="grid grid-cols-2 gap-3">
-            <ResultItem label="텍스트 청크" value={`${displayResult.chunkCount.toLocaleString()}개`} />
+            <ResultItem label="텍스트 청크" value={`${displayResult.chunkCount.toLocaleString()}개`} action={<Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowChunks(true)}><Eye className="h-3.5 w-3.5" /></Button>} />
             <ResultItem label="추출 이미지" value={`${(displayResult as unknown as { extractedImageCount?: number }).extractedImageCount ?? 0}개`} />
-            <ResultItem label="이미지 벡터" value={`${(displayResult as unknown as { imageChunkCount?: number }).imageChunkCount ?? 0}개`} />
+            <ResultItem label="필터 제거" value={`${(displayResult as unknown as { filteredImageCount?: number }).filteredImageCount ?? 0}개`} />
+            <ResultItem label="이미지 벡터" value={`${(displayResult as unknown as { imageChunkCount?: number }).imageChunkCount ?? 0}개`} action={<Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowImages(true)}><Eye className="h-3.5 w-3.5" /></Button>} />
             <ResultItem label="임베딩 모델" value={displayResult.embeddingModel} />
             <ResultItem label="청크 사이즈" value={`${displayResult.chunkSizeTokens.toLocaleString()} 토큰`} />
             <ResultItem label="소요 시간" value={`${(displayResult.elapsedMs / 1000).toFixed(1)}초`} />
@@ -178,14 +183,21 @@ export function VectorRegistrationPanel({ projectId, rfpFile, onStatusChange }: 
           )}
         </div>
       </CardContent>
+
+      {/* 뷰어 다이얼로그 */}
+      <ChunkViewerDialog open={showChunks} onOpenChange={setShowChunks} projectId={projectId} />
+      <ImageViewerDialog open={showImages} onOpenChange={setShowImages} projectId={projectId} />
     </Card>
   );
 }
 
-function ResultItem({ label, value }: { label: string; value: string }) {
+function ResultItem({ label, value, action }: { label: string; value: string; action?: React.ReactNode }) {
   return (
     <div className="rounded-md bg-muted/50 px-3 py-2">
-      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        {action}
+      </div>
       <div className="text-sm font-medium">{value}</div>
     </div>
   );
