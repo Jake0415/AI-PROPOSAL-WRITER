@@ -203,6 +203,7 @@ export const proposalOutlines = aiprowriterSchema.table('proposal_outlines', {
   id: uuid('id').defaultRandom().primaryKey(),
   projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   sections: jsonb('sections').$type<OutlineSection[]>().notNull().default([]),
+  totalPages: integer('total_pages').notNull().default(100),
 }, (table) => [
   index('proposal_outlines_project_id_idx').on(table.projectId),
 ]);

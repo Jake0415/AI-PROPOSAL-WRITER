@@ -90,11 +90,13 @@ export const proposalRepository = {
     return results[0];
   },
 
-  async updateOutline(id: string, sections: OutlineSection[]) {
+  async updateOutline(id: string, sections: OutlineSection[], totalPages?: number) {
     const db = getDb();
+    const setData: Record<string, unknown> = { sections };
+    if (totalPages !== undefined) setData.totalPages = totalPages;
     await db
       .update(proposalOutlines)
-      .set({ sections })
+      .set(setData)
       .where(eq(proposalOutlines.id, id));
   },
 

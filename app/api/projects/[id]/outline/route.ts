@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { proposalRepository } from '@/lib/repositories/proposal.repository';
 import type { OutlineSection } from '@/lib/ai/types';
 
+/** 기존 데이터 호환: level이 1-based면 0-based로, title에서 번호 패턴 제거 */
+function migrateSections(sections: OutlineSection[]): OutlineSection[] {
+  const needsMigration = sections.length > 0 && sections[0].level >= 1
+    && !sections.some(s => s.level === 0);
+
+  if (!needsMigration) return sections;
+
+  function fix(items: OutlineSection[], offset: number): OutlineSection[] {
+    return items.map((s) => ({
+      ...s,
+      title: s.title.replace(/^\d+[\.\-]\s*/, ''),
+      level: s.level - offset,
+      children: s.children?.length ? fix(s.children, offset) : [],
+    }));
+  }
+
+  const minLevel = Math.min(...sections.map(s => s.level));
+  return fix(sections, minLevel);
+}
+
 // 목차 조회
 export async function GET(
   _request: NextRequest,
@@ -16,9 +36,19 @@ export async function GET(
         { status: 404 },
       );
     }
+
+    const rawSections = typeof outline.sections === 'string'
+      ? JSON.parse(outline.sections as string)
+      : outline.sections;
+    const sections = migrateSections(rawSections ?? []);
+
     return NextResponse.json({
       success: true,
-      data: { id: outline.id, sections: outline.sections },
+      data: {
+        id: outline.id,
+        sections,
+        totalPages: (outline as Record<string, unknown>).totalPages ?? 100,
+      },
     });
   } catch {
     return NextResponse.json(
@@ -36,7 +66,7 @@ export async function PUT(
   const { id: projectId } = await params;
   try {
     const body = await request.json();
-    const { sections } = body as { sections: OutlineSection[] };
+    const { sections, totalPages } = body as { sections: OutlineSection[]; totalPages?: number };
 
     if (!sections || !Array.isArray(sections)) {
       return NextResponse.json(
@@ -53,7 +83,7 @@ export async function PUT(
       );
     }
 
-    await proposalRepository.updateOutline(outline.id, sections);
+    await proposalRepository.updateOutline(outline.id, sections, totalPages);
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json(

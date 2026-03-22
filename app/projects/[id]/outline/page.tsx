@@ -4,17 +4,17 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ProgressTracker } from '@/components/project/progress-tracker';
 import { useSSE } from '@/lib/hooks/use-sse';
-import type { OutlineSection } from '@/lib/ai/types';
+import type { OutlineSection, EvaluationCriterion } from '@/lib/ai/types';
 import { CoachingButton } from '@/components/guide/coaching-button';
 import { AiChatPanel } from '@/components/project/ai-chat-panel';
-import { OutlineEvalMapping } from '@/components/project/outline-eval-mapping';
-import { OutlineTemplateSelector } from '@/components/project/outline-template-selector';
-import { ArrowRight, GripVertical, List, Sparkles } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { DataLoadingSpinner } from '@/components/project/data-loading-spinner';
-import type { EvaluationCriterion } from '@/lib/ai/types';
+import { OutlineTotalPagesBar } from '@/components/project/outline-total-pages-bar';
+import { OutlineSourceTabs } from '@/components/project/outline-source-tabs';
+import { OutlineTreeEditor } from '@/components/project/outline-tree-editor';
+import { OutlineEvalSummary } from '@/components/project/outline-eval-summary';
+import { autoAllocatePages } from '@/lib/utils/outline-helpers';
+import { ArrowRight } from 'lucide-react';
 
 export default function OutlinePage() {
   const params = useParams();
@@ -23,10 +23,13 @@ export default function OutlinePage() {
 
   const [sections, setSections] = useState<OutlineSection[]>([]);
   const [criteria, setCriteria] = useState<EvaluationCriterion[]>([]);
-  const [dragId, setDragId] = useState<string | null>(null);
+  const [totalPages, setTotalPages] = useState(100);
   const [isLoadingExisting, setIsLoadingExisting] = useState(true);
+  const [saving, setSaving] = useState(false);
+
   const sse = useSSE<OutlineSection[]>();
   const initialized = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 평가항목 로드
   useEffect(() => {
@@ -40,7 +43,7 @@ export default function OutlinePage() {
       .catch(() => {});
   }, [projectId]);
 
-  // 기존 데이터 로드 후 없으면 생성
+  // 기존 데이터 로드 (자동 생성 안 함)
   useEffect(() => {
     if (!initialized.current) {
       initialized.current = true;
@@ -48,141 +51,128 @@ export default function OutlinePage() {
         .then((res) => res.json())
         .then((json) => {
           if (json.success && json.data?.sections) {
-            const parsed = typeof json.data.sections === 'string'
-              ? JSON.parse(json.data.sections)
-              : json.data.sections;
+            const parsed =
+              typeof json.data.sections === 'string'
+                ? JSON.parse(json.data.sections)
+                : json.data.sections;
             if (parsed.length > 0) {
               setSections(parsed);
-              return;
+            }
+            if (json.data.totalPages) {
+              setTotalPages(json.data.totalPages);
             }
           }
-          sse.execute(`/api/projects/${projectId}/outline/generate`);
         })
-        .catch(() => { /* 에러 시 자동 생성하지 않음 */ })
+        .catch(() => {})
         .finally(() => setIsLoadingExisting(false));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
+  // SSE 결과 반영
   useEffect(() => {
     if (sse.result) setSections(sse.result);
   }, [sse.result]);
 
-  // 드래그앤드롭으로 순서 변경 (같은 레벨)
-  const handleDragStart = useCallback((id: string) => setDragId(id), []);
+  // Debounced 자동 저장
+  const saveToServer = useCallback(
+    (newSections: OutlineSection[], newTotalPages?: number) => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        setSaving(true);
+        fetch(`/api/projects/${projectId}/outline`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sections: newSections,
+            totalPages: newTotalPages ?? totalPages,
+          }),
+        })
+          .catch(() => {})
+          .finally(() => {
+            setTimeout(() => setSaving(false), 800);
+          });
+      }, 1000);
+    },
+    [projectId, totalPages],
+  );
 
-  const handleDrop = useCallback(
-    (targetId: string) => {
-      if (!dragId || dragId === targetId) {
-        setDragId(null);
-        return;
+  // sections 변경 핸들러
+  const handleSectionsChange = useCallback(
+    (newSections: OutlineSection[]) => {
+      setSections(newSections);
+      saveToServer(newSections);
+    },
+    [saveToServer],
+  );
+
+  // 총 페이지 변경
+  const handleTotalPagesChange = useCallback(
+    (pages: number) => {
+      setTotalPages(pages);
+      if (sections.length > 0) {
+        saveToServer(sections, pages);
       }
+    },
+    [sections, saveToServer],
+  );
 
-      function reorder(items: OutlineSection[]): OutlineSection[] {
-        const dragIdx = items.findIndex((s) => s.id === dragId);
-        const dropIdx = items.findIndex((s) => s.id === targetId);
+  // 자동 배분
+  const handleAutoAllocate = useCallback(() => {
+    const allocated = autoAllocatePages(sections, totalPages);
+    setSections(allocated);
+    saveToServer(allocated);
+  }, [sections, totalPages, saveToServer]);
 
-        if (dragIdx !== -1 && dropIdx !== -1) {
-          const updated = [...items];
-          const [moved] = updated.splice(dragIdx, 1);
-          updated.splice(dropIdx, 0, moved);
-          return updated.map((s, i) => ({ ...s, order: i + 1 }));
-        }
+  // AI 생성
+  const handleGenerate = useCallback(() => {
+    sse.execute(`/api/projects/${projectId}/outline/generate`);
+  }, [sse, projectId]);
 
-        return items.map((s) => ({
-          ...s,
-          children: s.children?.length ? reorder(s.children) : s.children,
-        }));
-      }
-
-      const updated = reorder(sections);
-      setSections(updated);
-      setDragId(null);
-
-      // 서버에 저장
+  // 템플릿 적용
+  const handleApplyTemplate = useCallback(
+    (tplSections: OutlineSection[]) => {
+      setSections(tplSections);
+      // 템플릿 적용 시 즉시 저장
       fetch(`/api/projects/${projectId}/outline`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sections: updated }),
+        body: JSON.stringify({ sections: tplSections, totalPages }),
       }).catch(() => {});
     },
-    [dragId, sections, projectId],
+    [projectId, totalPages],
   );
 
-  function renderSections(items: OutlineSection[], depth = 0) {
-    return items.map((section) => (
-      <div key={section.id}>
-        <div
-          draggable
-          onDragStart={() => handleDragStart(section.id)}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={() => handleDrop(section.id)}
-          className={cn(
-            'flex items-center gap-2 py-2 px-3 rounded-md text-sm transition-colors cursor-move group',
-            depth === 0 && 'font-medium text-base',
-            dragId === section.id
-              ? 'opacity-50 bg-muted'
-              : 'hover:bg-muted/50',
-          )}
-          style={{ paddingLeft: `${depth * 24 + 12}px` }}
-        >
-          <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-          <List className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          {section.title}
-        </div>
-        {section.children?.length > 0 && renderSections(section.children, depth + 1)}
-      </div>
-    ));
-  }
+  const hasSections = sections.length > 0;
+  const description = hasSections
+    ? '드래그하여 순서 변경, 더블클릭하여 제목 편집'
+    : 'RFP 분석 결과를 바탕으로 제안서 목차를 구성합니다';
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">목차 구성</h2>
-          <p className="text-muted-foreground mt-1">
-            드래그하여 순서를 변경할 수 있습니다
-          </p>
+          <p className="text-muted-foreground mt-1 text-sm">{description}</p>
         </div>
         <div className="flex items-center gap-2">
-          {sections.length > 0 && (
-            <>
-              <OutlineTemplateSelector
-                onApply={(tplSections) => {
-                  setSections(tplSections);
-                  fetch(`/api/projects/${projectId}/outline`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sections: tplSections }),
-                  }).catch(() => {});
-                }}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => sse.execute(`/api/projects/${projectId}/outline/generate`)}
-                disabled={sse.isLoading}
-              >
-                <Sparkles className="mr-1 h-3 w-3" />
-                재생성
-              </Button>
-              <AiChatPanel projectId={projectId} />
-              <CoachingButton projectId={projectId} stepKey="outline" />
-              <Button onClick={() => router.push(`/projects/${projectId}/sections`)}>
-                다음: 내용 생성
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </>
+          <AiChatPanel projectId={projectId} />
+          <CoachingButton projectId={projectId} stepKey="outline" />
+          {hasSections && (
+            <Button onClick={() => router.push(`/projects/${projectId}/sections`)}>
+              다음: 내용 생성
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
           )}
         </div>
       </div>
 
+      {/* Loading */}
       {isLoadingExisting && !sse.isLoading && (
         <DataLoadingSpinner message="목차 데이터를 불러오는 중..." />
       )}
 
-      <ProgressTracker progress={sse.progress} step={sse.step} isLoading={sse.isLoading} />
-
+      {/* Error */}
       {sse.error && (
         <Card className="border-destructive">
           <CardHeader>
@@ -192,42 +182,53 @@ export default function OutlinePage() {
         </Card>
       )}
 
-      {sections.length > 0 && criteria.length > 0 && (
-        <OutlineEvalMapping
-          criteria={criteria}
+      {/* Total Pages Bar */}
+      {!isLoadingExisting && (
+        <OutlineTotalPagesBar
+          totalPages={totalPages}
+          onTotalPagesChange={handleTotalPagesChange}
           sections={sections}
-          onSectionsChange={(updated) => {
-            setSections(updated);
-            fetch(`/api/projects/${projectId}/outline`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ sections: updated }),
-            }).catch(() => {});
-          }}
+          onAutoAllocate={handleAutoAllocate}
+          disabled={sse.isLoading}
         />
       )}
 
-      {sections.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">제안서 목차</CardTitle>
-            <CardDescription>
-              총 {countSections(sections)}개 섹션이 구성되었습니다
-            </CardDescription>
-          </CardHeader>
-          <div className="px-6 pb-6">{renderSections(sections)}</div>
-        </Card>
+      {/* Source Tabs (AI / Template) */}
+      {!isLoadingExisting && (
+        <OutlineSourceTabs
+          hasSections={hasSections}
+          isGenerating={sse.isLoading}
+          sseProgress={sse.progress}
+          sseStep={sse.step}
+          onGenerate={handleGenerate}
+          onApplyTemplate={handleApplyTemplate}
+        />
+      )}
+
+      {/* Tree Editor */}
+      {hasSections && (
+        <OutlineTreeEditor
+          sections={sections}
+          criteria={criteria}
+          onChange={handleSectionsChange}
+          saving={saving}
+        />
+      )}
+
+      {/* Eval Summary */}
+      {hasSections && criteria.length > 0 && (
+        <OutlineEvalSummary sections={sections} criteria={criteria} />
+      )}
+
+      {/* Next button (bottom) */}
+      {hasSections && (
+        <div className="flex justify-end pt-2">
+          <Button onClick={() => router.push(`/projects/${projectId}/sections`)}>
+            다음: 내용 생성
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
       )}
     </div>
   );
-}
-
-function countSections(sections: OutlineSection[]): number {
-  let count = sections.length;
-  for (const s of sections) {
-    if (s.children?.length) {
-      count += countSections(s.children);
-    }
-  }
-  return count;
 }

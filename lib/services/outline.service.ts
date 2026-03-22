@@ -10,6 +10,19 @@ import type { SSEProgress } from '@/lib/utils/sse-stream';
 
 type ProgressCallback = (p: SSEProgress) => void;
 
+/** 서브섹션 level을 재귀적으로 보정하고 title에서 번호 패턴 제거 */
+function normalizeLevel(sections: OutlineSection[], targetLevel: number): OutlineSection[] {
+  return sections.map((s, i) => ({
+    ...s,
+    title: s.title.replace(/^\d+[\.\-]\d*[\.\-]?\d*\s*/, '').trim(),
+    level: targetLevel,
+    order: i + 1,
+    children: s.children?.length
+      ? normalizeLevel(s.children, targetLevel + 1)
+      : [],
+  }));
+}
+
 interface RecommendedChapter {
   chapter: string;
   evalId: string;
@@ -117,13 +130,19 @@ export async function generateOutline(
         subSections = parsed.sections ?? [];
       } catch { /* 파싱 실패 시 빈 배열 */ }
 
-      // 챕터(level 1) 생성 + 서브섹션 연결
+      // 서브섹션 level 보정 (LLM이 2,3으로 생성 → 1,2로 변경)
+      const normalizedSubs = normalizeLevel(subSections, 1);
+
+      // 챕터(level 0) 생성 + 서브섹션 연결 + Step 7 데이터 매핑
       const chapterSection: OutlineSection = {
         id: `sec-${chapterNum}`,
-        title: `${chapterNum}. ${ch.chapter.replace(/^\d+-/, '')}`,
-        level: 1,
+        title: ch.chapter.replace(/^\d+[\-\.]\s*/, ''),
+        level: 0,
         order: chapterNum,
-        children: subSections,
+        children: normalizedSubs,
+        evalItemId: ch.evalId,
+        evalScore: ch.score,
+        estimatedPages: ch.recommendedPages,
       };
 
       allSections.push(chapterSection);
@@ -131,10 +150,13 @@ export async function generateOutline(
       // 개별 챕터 실패 시 빈 챕터로 추가 (전체 실패 방지)
       allSections.push({
         id: `sec-${chapterNum}`,
-        title: `${chapterNum}. ${ch.chapter.replace(/^\d+-/, '')} (생성 실패)`,
-        level: 1,
+        title: `${ch.chapter.replace(/^\d+[\-\.]\s*/, '')} (생성 실패)`,
+        level: 0,
         order: chapterNum,
         children: [],
+        evalItemId: ch.evalId,
+        evalScore: ch.score,
+        estimatedPages: ch.recommendedPages,
       });
       console.warn(`챕터 ${chapterNum} 생성 실패:`, err instanceof Error ? err.message : err);
     }
