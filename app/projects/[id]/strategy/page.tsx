@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ProgressTracker } from '@/components/project/progress-tracker';
 import { useSSE } from '@/lib/hooks/use-sse';
 import type { ProposalStrategyResult } from '@/lib/ai/types';
+import { DataLoadingSpinner } from '@/components/project/data-loading-spinner';
 import { CoachingButton } from '@/components/guide/coaching-button';
 import { AiChatPanel } from '@/components/project/ai-chat-panel';
 import { ArrowRight, Target, MessageSquare, Sparkles } from 'lucide-react';
@@ -18,6 +19,7 @@ export default function StrategyPage() {
   const projectId = params.id as string;
 
   const [strategy, setStrategy] = useState<ProposalStrategyResult | null>(null);
+  const [isLoadingExisting, setIsLoadingExisting] = useState(true);
   const sse = useSSE<ProposalStrategyResult>();
   const initialized = useRef(false);
 
@@ -33,9 +35,8 @@ export default function StrategyPage() {
             sse.execute(`/api/projects/${projectId}/strategy/generate`);
           }
         })
-        .catch(() => {
-          sse.execute(`/api/projects/${projectId}/strategy/generate`);
-        });
+        .catch(() => { /* 에러 시 자동 생성하지 않음 */ })
+        .finally(() => setIsLoadingExisting(false));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
@@ -70,6 +71,10 @@ export default function StrategyPage() {
           )}
         </div>
       </div>
+
+      {isLoadingExisting && !sse.isLoading && (
+        <DataLoadingSpinner message="전략 데이터를 불러오는 중..." />
+      )}
 
       <ProgressTracker
         progress={sse.progress}

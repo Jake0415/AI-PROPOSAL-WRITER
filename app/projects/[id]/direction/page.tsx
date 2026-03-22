@@ -10,6 +10,7 @@ import { useSSE } from '@/lib/hooks/use-sse';
 import type { DirectionCandidate } from '@/lib/ai/types';
 import { CoachingButton } from '@/components/guide/coaching-button';
 import { AiChatPanel } from '@/components/project/ai-chat-panel';
+import { DataLoadingSpinner } from '@/components/project/data-loading-spinner';
 import { ArrowRight, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -40,9 +41,7 @@ export default function DirectionPage() {
             sse.execute(`/api/projects/${projectId}/direction/generate`);
           }
         })
-        .catch(() => {
-          sse.execute(`/api/projects/${projectId}/direction/generate`);
-        })
+        .catch(() => { /* 에러 시 자동 생성하지 않음 */ })
         .finally(() => setIsLoadingExisting(false));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,6 +96,10 @@ export default function DirectionPage() {
           )}
         </div>
       </div>
+
+      {isLoadingExisting && !sse.isLoading && (
+        <DataLoadingSpinner message="방향성 데이터를 불러오는 중..." />
+      )}
 
       <ProgressTracker
         progress={sse.progress}

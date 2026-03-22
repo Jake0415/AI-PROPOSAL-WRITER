@@ -13,6 +13,7 @@ import { OutlineEvalMapping } from '@/components/project/outline-eval-mapping';
 import { OutlineTemplateSelector } from '@/components/project/outline-template-selector';
 import { ArrowRight, GripVertical, List, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DataLoadingSpinner } from '@/components/project/data-loading-spinner';
 import type { EvaluationCriterion } from '@/lib/ai/types';
 
 export default function OutlinePage() {
@@ -23,6 +24,7 @@ export default function OutlinePage() {
   const [sections, setSections] = useState<OutlineSection[]>([]);
   const [criteria, setCriteria] = useState<EvaluationCriterion[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [isLoadingExisting, setIsLoadingExisting] = useState(true);
   const sse = useSSE<OutlineSection[]>();
   const initialized = useRef(false);
 
@@ -56,9 +58,8 @@ export default function OutlinePage() {
           }
           sse.execute(`/api/projects/${projectId}/outline/generate`);
         })
-        .catch(() => {
-          sse.execute(`/api/projects/${projectId}/outline/generate`);
-        });
+        .catch(() => { /* 에러 시 자동 생성하지 않음 */ })
+        .finally(() => setIsLoadingExisting(false));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
@@ -175,6 +176,10 @@ export default function OutlinePage() {
           )}
         </div>
       </div>
+
+      {isLoadingExisting && !sse.isLoading && (
+        <DataLoadingSpinner message="목차 데이터를 불러오는 중..." />
+      )}
 
       <ProgressTracker progress={sse.progress} step={sse.step} isLoading={sse.isLoading} />
 
