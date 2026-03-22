@@ -1,45 +1,68 @@
-export const SECTION_SYSTEM_PROMPT = `당신은 한국 공공입찰 제안서 작성 전문가입니다.
-제안서의 각 섹션별 상세 내용을 작성합니다.
-공공 제안서 문체와 용어를 사용하며, 구체적이고 전문적인 내용을 작성합니다.
+export const SECTION_SYSTEM_PROMPT = `당신은 한국 공공입찰 제안서 본문 작성 전문가입니다.
+서브 챕터(예: 1.1 사업 추진 배경) 전체의 내용을 하위 섹션별로 맥락 있게 작성합니다.
 
-작성 원칙:
-- 명확하고 간결한 문체 사용
-- 기술적 내용은 구체적 수치와 예시 포함
-- 필요시 표(마크다운 테이블) 활용
-- 다이어그램이 필요한 경우 Mermaid 문법으로 별도 제공
+## 작성 원칙
+1. 두괄식 서술: 각 섹션 첫 문단에 핵심 주장을 먼저 제시
+2. RFP 용어를 그대로 사용하세요
+3. 구체적 수치와 근거를 포함하세요
+4. 시각 자료가 필요한 위치에 이미지 마커를 삽입하세요
 
-응답 형식: JSON으로만 응답하세요.`;
+## 이미지 마커 규칙
+시스템 구성도, 데이터 흐름도, 아키텍처, 일정표 등 시각 자료가 필요한 위치에 다음 마커를 삽입하세요:
+<!-- IMAGE: {"type": "diagram", "title": "제목", "description": "설명"} -->
+
+type 종류: diagram, flowchart, architecture, gantt, sequence, table
+
+반드시 JSON 형식으로만 응답하세요.`;
 
 export function buildSectionPrompt(
-  sectionTitle: string,
-  sectionPath: string,
-  analysisJson: string,
-  strategyJson: string,
-  outlineJson: string,
-  writingStyle?: string,
+  subChapterTitle: string,
+  subChapterPath: string,
+  childSections: string,
+  contextJson: string,
+  previousResults: string,
+  ragContext: string,
 ): string {
-  const styleDirective = writingStyle ? `\n## 문체 지시\n"${writingStyle}" 톤앤매너로 작성해주세요.\n` : '';
+  let prompt = `다음 서브 챕터의 내용을 하위 섹션별로 작성하세요.
 
-  return `다음 정보를 기반으로 제안서의 "${sectionTitle}" (${sectionPath}) 섹션 내용을 작성해주세요.
-${styleDirective}
+## 서브 챕터 정보
+- 제목: ${subChapterTitle}
+- 경로: ${subChapterPath}
 
-## RFP 분석 결과 (요약)
-${analysisJson.slice(0, 20000)}
+## 하위 섹션 목록 (이 순서대로 내용 작성)
+${childSections}
 
-## 제안 전략
-${strategyJson}
+`;
 
-## 전체 목차 (현재 위치 참고)
-${outlineJson.slice(0, 10000)}
+  if (previousResults) {
+    prompt += `## 이전 서브 챕터 내용 (맥락 연결 참조)
+${previousResults.slice(0, 5000)}
 
-## 출력 형식
+`;
+  }
+
+  if (ragContext) {
+    prompt += `## RFP 관련 원문 (참조)
+${ragContext.slice(0, 10000)}
+
+`;
+  }
+
+  prompt += `## 분석/전략 컨텍스트
+${contextJson.slice(0, 10000)}
+
+## 출력 JSON
 {
-  "content": "마크다운 형식의 섹션 내용 (1000~3000자)",
-  "diagrams": [
-    "graph TD\\n  A[시작] --> B[종료]"
-  ]
+  "content": "마크다운 형식의 본문. 하위 섹션별로 ## 헤더 사용. 이미지 필요 위치에 IMAGE 마커 삽입",
+  "diagrams": ["mermaid 코드가 있으면 배열로"]
 }
 
-content는 마크다운으로 작성하되, 제목(#)은 포함하지 마세요 (섹션 제목은 이미 있으므로).
-diagrams는 Mermaid 문법의 다이어그램 코드 배열입니다. 기술 섹션에는 1~2개 다이어그램을 포함하고, 비기술 섹션은 빈 배열로 두세요.`;
+## 작성 규칙
+1. 각 하위 섹션을 ## 헤더로 구분하여 순서대로 작성
+2. 이전 서브 챕터 내용과 자연스럽게 연결 ("앞서 언급한 바와 같이...")
+3. RFP 요구사항에 대한 구체적 대응 방안 포함
+4. 시각 자료 필요 위치에 <!-- IMAGE: {...} --> 마커 삽입
+5. 각 하위 섹션당 최소 3~5문단`;
+
+  return prompt;
 }

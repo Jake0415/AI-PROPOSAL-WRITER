@@ -55,9 +55,10 @@ export async function POST(
       userPrompt: buildSectionPrompt(
         section.title,
         section.sectionPath,
-        analysisJson,
-        strategyJson,
-        JSON.stringify(outline.sections),
+        '',
+        analysisJson + '\n' + strategyJson,
+        '',
+        '',
       ),
       maxTokens: 4096,
     });

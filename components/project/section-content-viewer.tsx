@@ -10,9 +10,10 @@ interface SectionContentViewerProps {
   content: string;
   diagrams?: unknown[];
   onSave: (content: string) => void;
+  renderPrettyPrint?: (content: string) => React.ReactNode;
 }
 
-export function SectionContentViewer({ content, onSave }: SectionContentViewerProps) {
+export function SectionContentViewer({ content, onSave, renderPrettyPrint }: SectionContentViewerProps) {
   const [mdText, setMdText] = useState(content);
   const [jsonText, setJsonText] = useState(() => JSON.stringify({ content }, null, 2));
   const [jsonError, setJsonError] = useState<string | null>(null);
@@ -60,8 +61,12 @@ export function SectionContentViewer({ content, onSave }: SectionContentViewerPr
       </TabsList>
 
       <TabsContent value="pretty" className="mt-2">
-        <div className="rounded-md border bg-background p-4 max-h-96 overflow-y-auto prose prose-sm dark:prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-          <ReactMarkdown>{content}</ReactMarkdown>
+        <div className="rounded-md border bg-background p-4 max-h-96 overflow-y-auto">
+          {renderPrettyPrint ? renderPrettyPrint(content) : (
+            <div className="prose prose-sm dark:prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+              <ReactMarkdown>{content}</ReactMarkdown>
+            </div>
+          )}
         </div>
       </TabsContent>
 
