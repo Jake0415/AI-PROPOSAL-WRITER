@@ -1,9 +1,10 @@
-import { generateText } from '@/lib/ai/client';
+import { generateText, getActiveProvider } from '@/lib/ai/client';
 import { rfpRepository } from '@/lib/repositories/rfp.repository';
 import { proposalRepository } from '@/lib/repositories/proposal.repository';
 import { projectRepository } from '@/lib/repositories/project.repository';
 import { getPrompt } from '@/lib/services/prompt.service';
 import type { OutlineSection } from '@/lib/ai/types';
+import type { SSEProgress } from '@/lib/utils/sse-stream';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -16,8 +17,6 @@ export interface GeneratedSection {
   status: string;
 }
 
-import type { SSEProgress } from '@/lib/utils/sse-stream';
-
 type ProgressCallback = (p: SSEProgress) => void;
 
 interface FlatSection {
@@ -25,21 +24,38 @@ interface FlatSection {
   path: string;
 }
 
+interface SectionContext {
+  analysis: Record<string, unknown>;
+  strategy: Record<string, unknown>;
+  outline: { id: string; sections: OutlineSection[] };
+  analysisJson: string;
+  strategyJson: string;
+  outlineJson: string;
+  writingStyle?: string;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────
 
 function flattenLeafSections(
   sections: OutlineSection[],
   parentPath = '',
+  filterChapterPath?: string,
 ): FlatSection[] {
   const result: FlatSection[] = [];
   for (const section of sections) {
     const path = parentPath
       ? `${parentPath}.${section.order}`
       : `${section.order}`;
+
+    // 챕터 필터링: filterChapterPath가 지정되면 해당 챕터만
+    if (filterChapterPath && !path.startsWith(filterChapterPath)) {
+      continue;
+    }
+
     if (!section.children || section.children.length === 0) {
       result.push({ title: section.title, path });
     } else {
-      result.push(...flattenLeafSections(section.children, path));
+      result.push(...flattenLeafSections(section.children, path, filterChapterPath));
     }
   }
   return result;
@@ -53,8 +69,6 @@ function parseSectionResult(result: string): { content: string; diagrams: string
     return { content: result.slice(0, 3000), diagrams: [] };
   }
 }
-
-// ─── 병렬 실행 유틸리티 ──────────────────────────────────────
 
 async function runWithConcurrency<T, R>(
   items: T[],
@@ -79,15 +93,9 @@ async function runWithConcurrency<T, R>(
   return results;
 }
 
-// ─── Main Service ────────────────────────────────────────────
+// ─── 공통 컨텍스트 로딩 ──────────────────────────────────────
 
-export async function generateSections(
-  projectId: string,
-  onProgress?: ProgressCallback,
-  concurrency = 3,
-): Promise<GeneratedSection[]> {
-  onProgress?.({ step: '데이터 로딩', progress: 5 });
-
+async function loadSectionContext(projectId: string): Promise<SectionContext> {
   const [analysis, strategy, outline] = await Promise.all([
     rfpRepository.getAnalysisByProjectId(projectId),
     proposalRepository.getStrategy(projectId),
@@ -103,77 +111,193 @@ export async function generateSections(
     requirements: analysis.requirements,
     evaluationCriteria: analysis.evaluationCriteria,
   });
-  const writingStyle = (strategy as Record<string, unknown>).writingStyle as string | undefined;
+
   const strategyJson = JSON.stringify({
     competitiveStrategy: strategy.competitiveStrategy,
     differentiators: strategy.differentiators,
     keyMessages: strategy.keyMessages,
   });
-  const outlineSections = outline.sections;
-  const outlineJson = JSON.stringify(outlineSections);
 
-  const leafSections = flattenLeafSections(outlineSections);
-  const totalSections = leafSections.length;
+  const writingStyle = (strategy as Record<string, unknown>).writingStyle as string | undefined;
 
-  if (totalSections === 0) {
-    throw new Error('생성할 섹션이 없습니다.');
+  return {
+    analysis: analysis as unknown as Record<string, unknown>,
+    strategy: strategy as unknown as Record<string, unknown>,
+    outline: { id: outline.id, sections: outline.sections },
+    analysisJson,
+    strategyJson,
+    outlineJson: JSON.stringify(outline.sections),
+    writingStyle,
+  };
+}
+
+// ─── 단일 섹션 생성 코어 (RAG 연동) ─────────────────────────
+
+async function generateSingleSectionCore(
+  projectId: string,
+  leaf: FlatSection,
+  ctx: SectionContext,
+): Promise<GeneratedSection> {
+  // RAG 검색으로 관련 RFP 원문 컨텍스트 가져오기
+  let ragContext = '';
+  try {
+    const rfpFile = await rfpRepository.getFileByProjectId(projectId);
+    if (rfpFile?.vectorStatus === 'completed') {
+      const { ragSearch } = await import('@/lib/vector/rag.service');
+      const cleanTitle = leaf.title.replace(/^[\d.]+\s*/, '');
+      const ragResult = await ragSearch(projectId, cleanTitle, 10);
+      if (ragResult.chunks.length > 0) {
+        ragContext = ragResult.chunks.map(c => c.text).join('\n\n');
+      }
+
+      // 이미지 매칭 → on-demand Vision
+      if (ragResult.imageMatches.length > 0 && getActiveProvider() === 'gpt') {
+        try {
+          const { analyzeImagesOnDemand } = await import('@/lib/vector/pdf-image.service');
+          const matchedPaths = ragResult.imageMatches.map(m => m.imagePath).filter(Boolean);
+          if (matchedPaths.length > 0) {
+            const visionResults = await analyzeImagesOnDemand(matchedPaths);
+            if (visionResults.length > 0) {
+              ragContext += '\n\n--- 관련 이미지 분석 ---\n' + visionResults.map(v =>
+                `[이미지]: ${v.description} (${v.keywords.join(', ')})`,
+              ).join('\n');
+            }
+          }
+        } catch { /* Vision 실패 시 텍스트만 */ }
+      }
+    }
+  } catch { /* RAG 실패 시 기존 방식 폴백 */ }
+
+  const prompt = await getPrompt('section-generation');
+  const userPrompt = prompt.buildUserPrompt(
+    leaf.title,
+    leaf.path,
+    ragContext ? ragContext.slice(0, 15000) : ctx.analysisJson.slice(0, 15000),
+    ctx.strategyJson,
+    ctx.outlineJson.slice(0, 10000),
+    ctx.writingStyle,
+  );
+
+  const result = await generateText({
+    systemPrompt: prompt.systemPrompt,
+    userPrompt,
+    maxTokens: prompt.maxTokens,
+  });
+
+  const sectionData = parseSectionResult(result);
+
+  // upsert: 기존 있으면 업데이트, 없으면 생성
+  const existing = await proposalRepository.getSectionByPath(projectId, leaf.path);
+  let saved;
+  if (existing) {
+    await proposalRepository.updateSection(existing.id, {
+      content: sectionData.content ?? '',
+      diagrams: sectionData.diagrams ?? [],
+      status: 'generated',
+    });
+    saved = { ...existing, content: sectionData.content ?? '', status: 'generated' };
+  } else {
+    saved = await proposalRepository.createSection({
+      projectId,
+      outlineId: ctx.outline.id,
+      sectionPath: leaf.path,
+      title: leaf.title,
+      content: sectionData.content ?? '',
+      diagrams: sectionData.diagrams ?? [],
+      status: 'generated',
+    });
   }
 
-  onProgress?.({ step: `${totalSections}개 섹션 생성 시작`, progress: 10 });
+  return {
+    id: saved.id,
+    sectionPath: leaf.path,
+    title: leaf.title,
+    content: sectionData.content ?? '',
+    diagrams: sectionData.diagrams ?? [],
+    status: 'generated',
+  };
+}
+
+// ─── 전체 생성 (기존 유지) ───────────────────────────────────
+
+export async function generateSections(
+  projectId: string,
+  onProgress?: ProgressCallback,
+  concurrency = 3,
+): Promise<GeneratedSection[]> {
+  onProgress?.({ step: '데이터 로딩', progress: 5 });
+  const ctx = await loadSectionContext(projectId);
+
+  const leafSections = flattenLeafSections(ctx.outline.sections);
+  if (leafSections.length === 0) throw new Error('생성할 섹션이 없습니다.');
+
+  onProgress?.({ step: `${leafSections.length}개 섹션 생성 시작`, progress: 10 });
   await projectRepository.updateStatus(projectId, 'generating');
 
   let completedCount = 0;
-
-  const generatedSections = await runWithConcurrency(
-    leafSections,
-    concurrency,
-    async (leaf) => {
-      const prompt = await getPrompt('section-generation');
-      const result = await generateText({
-        systemPrompt: prompt.systemPrompt,
-        userPrompt: prompt.buildUserPrompt(
-          leaf.title,
-          leaf.path,
-          analysisJson,
-          strategyJson,
-          outlineJson,
-          writingStyle,
-        ),
-        maxTokens: prompt.maxTokens,
-      });
-
-      const sectionData = parseSectionResult(result);
-
-      const saved = await proposalRepository.createSection({
-        projectId,
-        outlineId: outline.id,
-        sectionPath: leaf.path,
-        title: leaf.title,
-        content: sectionData.content ?? '',
-        diagrams: sectionData.diagrams ?? [],
-        status: 'generated',
-      });
-
-      completedCount++;
-      const progress = Math.round(10 + (completedCount / totalSections) * 80);
-      onProgress?.({
-        step: `[${completedCount}/${totalSections}] ${leaf.title} 완료`,
-        progress,
-      });
-
-      return {
-        id: saved.id,
-        sectionPath: leaf.path,
-        title: leaf.title,
-        content: sectionData.content ?? '',
-        diagrams: sectionData.diagrams ?? [],
-        status: 'generated',
-      };
-    },
-  );
+  const generatedSections = await runWithConcurrency(leafSections, concurrency, async (leaf) => {
+    const result = await generateSingleSectionCore(projectId, leaf, ctx);
+    completedCount++;
+    onProgress?.({
+      step: `[${completedCount}/${leafSections.length}] ${leaf.title} 완료`,
+      progress: Math.round(10 + (completedCount / leafSections.length) * 80),
+    });
+    return result;
+  });
 
   await projectRepository.updateStatus(projectId, 'sections_ready');
   onProgress?.({ step: '완료', progress: 100 });
+  return generatedSections;
+}
 
+// ─── 챕터별 생성 (신규) ──────────────────────────────────────
+
+export async function generateChapterSections(
+  projectId: string,
+  chapterPath: string,
+  onProgress?: ProgressCallback,
+  skipExisting = true,
+  concurrency = 3,
+): Promise<GeneratedSection[]> {
+  onProgress?.({ step: '데이터 로딩', progress: 5 });
+  const ctx = await loadSectionContext(projectId);
+
+  let leafSections = flattenLeafSections(ctx.outline.sections, '', chapterPath);
+
+  // 기존 생성된 섹션 제외
+  if (skipExisting) {
+    const existingSections = await proposalRepository.getSectionsByProject(projectId);
+    const existingPaths = new Set(existingSections.filter(s => s.status !== 'pending').map(s => s.sectionPath));
+    leafSections = leafSections.filter(s => !existingPaths.has(s.path));
+  }
+
+  if (leafSections.length === 0) {
+    onProgress?.({ step: '생성할 섹션이 없습니다 (이미 완료)', progress: 100 });
+    return [];
+  }
+
+  const stepLabels = leafSections.map((s, i) => `${i + 1}/${leafSections.length}: ${s.title}`);
+  onProgress?.({
+    step: `${leafSections.length}개 섹션 생성 시작`,
+    progress: 10,
+    steps: stepLabels,
+    totalSteps: leafSections.length,
+    stepIndex: 0,
+  });
+
+  let completedCount = 0;
+  const generatedSections = await runWithConcurrency(leafSections, concurrency, async (leaf) => {
+    const result = await generateSingleSectionCore(projectId, leaf, ctx);
+    completedCount++;
+    onProgress?.({
+      step: `[${completedCount}/${leafSections.length}] ${leaf.title} 완료`,
+      progress: Math.round(10 + (completedCount / leafSections.length) * 80),
+      stepIndex: completedCount,
+      totalSteps: leafSections.length,
+    });
+    return result;
+  });
+
+  onProgress?.({ step: '완료', progress: 100 });
   return generatedSections;
 }

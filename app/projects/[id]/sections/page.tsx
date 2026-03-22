@@ -2,341 +2,319 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ProgressTracker } from '@/components/project/progress-tracker';
 import { CoachingButton } from '@/components/guide/coaching-button';
 import { AiChatPanel } from '@/components/project/ai-chat-panel';
+import { SectionContentViewer } from '@/components/project/section-content-viewer';
+import { DataLoadingSpinner } from '@/components/project/data-loading-spinner';
 import { useSSE } from '@/lib/hooks/use-sse';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
-import { MermaidDiagram } from '@/components/ui/mermaid-diagram';
-import {
-  ArrowRight,
-  FileText,
-  Loader2,
-  Pencil,
-  RefreshCw,
-  Save,
-  Sparkles,
-  X,
-} from 'lucide-react';
+import type { OutlineSection } from '@/lib/ai/types';
+import type { GeneratedSection } from '@/lib/services/section-generator.service';
+import { ArrowRight, ChevronDown, ChevronUp, Loader2, RotateCcw, Sparkles, Zap } from 'lucide-react';
 
 interface SectionData {
   id: string;
   sectionPath: string;
   title: string;
   content: string;
-  diagrams: string;
+  diagrams: unknown[];
   status: string;
 }
 
-const STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' }> = {
-  pending: { label: '대기', variant: 'secondary' },
-  generating: { label: '생성 중', variant: 'outline' },
-  generated: { label: '생성 완료', variant: 'default' },
-  edited: { label: '편집됨', variant: 'default' },
-};
+interface Chapter {
+  order: number;
+  title: string;
+  path: string;
+}
 
 export default function SectionsPage() {
   const params = useParams();
   const router = useRouter();
   const projectId = params.id as string;
 
+  const [chapters, setChapters] = useState<Chapter[]>([]);
   const [sections, setSections] = useState<SectionData[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [isLoadingExisting, setIsLoadingExisting] = useState(true);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
-  const sse = useSSE<SectionData[]>();
-  const loaded = useRef(false);
+  const sse = useSSE<GeneratedSection[]>();
+  const initialized = useRef(false);
 
-  const fetchExisting = useCallback(async () => {
+  // 데이터 로드
+  const loadData = useCallback(async () => {
     try {
-      const res = await fetch(`/api/projects/${projectId}/sections`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.data.length > 0) {
-          setSections(data.data);
+      const [outlineRes, sectionsRes] = await Promise.all([
+        fetch(`/api/projects/${projectId}/outline`),
+        fetch(`/api/projects/${projectId}/sections`),
+      ]);
+
+      if (outlineRes.ok) {
+        const outlineJson = await outlineRes.json();
+        if (outlineJson.success && outlineJson.data?.sections) {
+          const outlineSections: OutlineSection[] = typeof outlineJson.data.sections === 'string'
+            ? JSON.parse(outlineJson.data.sections)
+            : outlineJson.data.sections;
+
+          // level 1 섹션을 챕터로 추출
+          const chapterList = outlineSections.map(s => ({
+            order: s.order,
+            title: s.title,
+            path: `${s.order}`,
+          }));
+          setChapters(chapterList);
         }
       }
-    } catch {
-      // 섹션 없음
-    }
+
+      if (sectionsRes.ok) {
+        const sectionsJson = await sectionsRes.json();
+        if (sectionsJson.success) {
+          setSections(sectionsJson.data ?? []);
+        }
+      }
+    } catch { /* ignore */ }
+    setIsLoadingExisting(false);
   }, [projectId]);
 
-  // 기존 섹션 로드
   useEffect(() => {
-    if (!loaded.current) {
-      loaded.current = true;
-      fetchExisting();
+    if (!initialized.current) {
+      initialized.current = true;
+      loadData();
     }
-  }, [fetchExisting]);
+  }, [loadData]);
 
   useEffect(() => {
     if (sse.result) {
-      setSections(sse.result);
+      loadData();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sse.result]);
 
-  function startGeneration() {
-    sse.execute(`/api/projects/${projectId}/sections/generate`);
+  // 현재 탭의 섹션 필터링
+  const filteredSections = activeTab === 'all'
+    ? sections
+    : sections.filter(s => s.sectionPath.startsWith(activeTab + '.') || s.sectionPath === activeTab);
+
+  // 챕터별 통계
+  function getChapterStats(chapterPath: string) {
+    const chapterSections = sections.filter(s => s.sectionPath.startsWith(chapterPath + '.') || s.sectionPath === chapterPath);
+    const completed = chapterSections.filter(s => s.status === 'generated' || s.status === 'edited').length;
+    return { completed, total: chapterSections.length };
   }
 
+  // 챕터 생성
+  async function generateChapter(chapterPath: string) {
+    await sse.execute(`/api/projects/${projectId}/sections/generate-chapter`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chapterPath, skipExisting: true }),
+    });
+  }
+
+  // 개별 재생성
   async function regenerateSection(sectionId: string) {
     setRegeneratingId(sectionId);
     try {
-      const res = await fetch(
-        `/api/projects/${projectId}/sections/${sectionId}/regenerate`,
-        { method: 'POST' },
-      );
-      const data = await res.json();
-      if (data.success) {
-        setSections((prev) =>
-          prev.map((s) =>
-            s.id === sectionId
-              ? { ...s, content: data.data.content, diagrams: JSON.stringify(data.data.diagrams), status: 'generated' }
-              : s,
-          ),
-        );
+      const res = await fetch(`/api/projects/${projectId}/sections/${sectionId}/regenerate`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setSections(prev => prev.map(s => s.id === sectionId ? { ...s, ...data.data, status: 'generated' } : s));
+        }
       }
-    } catch {
-      // 재생성 실패
-    } finally {
-      setRegeneratingId(null);
-    }
+    } catch { /* ignore */ }
+    setRegeneratingId(null);
   }
 
-  function startEdit(section: SectionData) {
-    setEditingId(section.id);
-    setEditContent(section.content);
-  }
-
-  async function saveEdit(sectionId: string) {
+  // 섹션 내용 저장
+  async function saveSection(sectionId: string, content: string) {
     try {
       await fetch(`/api/projects/${projectId}/sections/${sectionId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: editContent }),
+        body: JSON.stringify({ content }),
       });
-      setSections((prev) =>
-        prev.map((s) =>
-          s.id === sectionId ? { ...s, content: editContent, status: 'edited' } : s,
-        ),
-      );
-    } catch {
-      // 저장 실패
-    } finally {
-      setEditingId(null);
-      setEditContent('');
-    }
+      setSections(prev => prev.map(s => s.id === sectionId ? { ...s, content, status: 'edited' } : s));
+    } catch { /* ignore */ }
   }
 
-  function cancelEdit() {
-    setEditingId(null);
-    setEditContent('');
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case 'generated': return <Badge variant="default" className="text-[10px] bg-green-600">생성완료</Badge>;
+      case 'edited': return <Badge variant="default" className="text-[10px] bg-blue-600">편집됨</Badge>;
+      case 'generating': return <Badge variant="secondary" className="text-[10px]"><Loader2 className="h-3 w-3 animate-spin mr-1" />생성 중</Badge>;
+      default: return <Badge variant="outline" className="text-[10px]">대기</Badge>;
+    }
+  };
+
+  if (isLoadingExisting) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold tracking-tight">내용 생성</h2>
+        <DataLoadingSpinner message="섹션 데이터를 불러오는 중..." />
+      </div>
+    );
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="space-y-6">
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">내용 생성</h2>
-          <p className="text-muted-foreground mt-1">
-            목차별 AI 내용을 생성하고 편집합니다
-          </p>
+          <p className="text-muted-foreground mt-1">목차별 AI 내용을 생성하고 편집합니다</p>
         </div>
         <div className="flex items-center gap-2">
-          {sections.length === 0 && !sse.isLoading && (
-            <Button onClick={startGeneration}>
-              <Sparkles className="mr-2 h-4 w-4" />
-              전체 생성
+          <AiChatPanel projectId={projectId} />
+          <CoachingButton projectId={projectId} stepKey="sections" />
+          {sections.length > 0 && (
+            <Button onClick={() => router.push(`/projects/${projectId}/review`)}>
+              다음: 검증 리포트
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           )}
-          {sections.length > 0 && (
-            <>
-              <AiChatPanel projectId={projectId} />
-              <CoachingButton projectId={projectId} stepKey="outline" />
-              <Button
-                onClick={() => router.push(`/projects/${projectId}/output`)}
-              >
-                다음: 산출물 출력
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </>
-          )}
+          <Button
+            variant="outline"
+            onClick={() => sse.execute(`/api/projects/${projectId}/sections/generate`)}
+            disabled={sse.isLoading}
+            className="gap-2"
+          >
+            <Sparkles className="h-4 w-4" />
+            전체 생성
+          </Button>
         </div>
       </div>
 
-      {/* 진행률 */}
-      <ProgressTracker
-        progress={sse.progress}
-        step={sse.step}
-        isLoading={sse.isLoading}
-      />
+      {/* SSE 진행률 */}
+      <ProgressTracker progress={sse.progress} step={sse.step} isLoading={sse.isLoading} />
 
       {sse.error && (
         <Card className="border-destructive">
           <CardHeader>
-            <CardTitle className="text-destructive">오류</CardTitle>
-            <CardDescription>{sse.error}</CardDescription>
+            <CardTitle className="text-destructive text-sm">{sse.error}</CardTitle>
           </CardHeader>
         </Card>
       )}
 
-      {/* 빈 상태 */}
-      {sections.length === 0 && !sse.isLoading && !sse.error && (
-        <Card className="border-dashed">
-          <CardHeader className="text-center py-12">
-            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+      {/* 섹션이 없고 생성 중이 아닐 때 */}
+      {sections.length === 0 && !sse.isLoading && chapters.length > 0 && (
+        <Card>
+          <CardHeader className="text-center py-16">
+            <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <CardTitle>섹션 내용 생성</CardTitle>
-            <CardDescription>
-              &quot;전체 생성&quot; 버튼을 클릭하면 목차별 상세 내용을 AI가
-              자동으로 작성합니다.
-            </CardDescription>
+            <p className="text-muted-foreground mt-2">
+              &ldquo;전체 생성&rdquo; 또는 챕터별로 AI가 내용을 작성합니다
+            </p>
           </CardHeader>
         </Card>
       )}
 
-      {/* 섹션 목록 */}
-      {sections.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">
-              총 {sections.length}개 섹션
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={startGeneration}
-              disabled={sse.isLoading}
-            >
-              <RefreshCw className="mr-2 h-3 w-3" />
-              전체 재생성
-            </Button>
-          </div>
+      {/* 대분류 탭 */}
+      {(sections.length > 0 || chapters.length > 0) && !sse.isLoading && (
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="flex-wrap h-auto gap-1 p-1">
+            <TabsTrigger value="all" className="text-xs">
+              전체 ({sections.length})
+            </TabsTrigger>
+            {chapters.map(ch => {
+              const stats = getChapterStats(ch.path);
+              return (
+                <TabsTrigger key={ch.path} value={ch.path} className="text-xs gap-1">
+                  {ch.title.replace(/^\d+\.\s*/, '')}
+                  {stats.total > 0 && (
+                    <Badge variant="secondary" className="text-[9px] ml-1">
+                      {stats.completed}/{stats.total}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
 
-          <Accordion type="multiple" className="space-y-2">
-            {sections.map((section) => {
-              const statusInfo = STATUS_LABELS[section.status] ?? STATUS_LABELS.pending;
-              const isEditing = editingId === section.id;
+          {/* 챕터 헤더 + 생성 버튼 */}
+          {activeTab !== 'all' && (
+            <div className="flex items-center justify-between mt-4 mb-2">
+              <div className="text-sm font-medium">
+                {chapters.find(c => c.path === activeTab)?.title}
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => generateChapter(activeTab)}
+                disabled={sse.isLoading}
+              >
+                <Zap className="h-3.5 w-3.5" />
+                챕터 생성
+              </Button>
+            </div>
+          )}
+
+          {/* 섹션 카드 리스트 */}
+          <div className="space-y-2 mt-3">
+            {filteredSections.length === 0 && (
+              <p className="text-center text-muted-foreground py-8 text-sm">
+                이 챕터에 생성된 섹션이 없습니다. &ldquo;챕터 생성&rdquo;을 클릭하세요.
+              </p>
+            )}
+
+            {filteredSections.map(section => {
+              const isExpanded = expandedId === section.id;
               const isRegenerating = regeneratingId === section.id;
 
               return (
-                <AccordionItem
-                  key={section.id}
-                  value={section.id}
-                  className="border rounded-lg px-4"
-                >
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center gap-3 text-left">
-                      <span className="text-xs text-muted-foreground font-mono w-8">
-                        {section.sectionPath}
-                      </span>
-                      <span className="text-sm font-medium">
-                        {section.title}
-                      </span>
-                      <Badge variant={statusInfo.variant} className="text-[10px]">
-                        {statusInfo.label}
-                      </Badge>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-3 pt-2">
-                      {/* 액션 버튼 */}
-                      <div className="flex items-center gap-2">
-                        {!isEditing && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => startEdit(section)}
-                              disabled={isRegenerating}
-                            >
-                              <Pencil className="mr-1 h-3 w-3" />
-                              편집
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => regenerateSection(section.id)}
-                              disabled={isRegenerating}
-                            >
-                              {isRegenerating ? (
-                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                              ) : (
-                                <RefreshCw className="mr-1 h-3 w-3" />
-                              )}
-                              재생성
-                            </Button>
-                          </>
-                        )}
-                        {isEditing && (
-                          <>
-                            <Button
-                              size="sm"
-                              onClick={() => saveEdit(section.id)}
-                            >
-                              <Save className="mr-1 h-3 w-3" />
-                              저장
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={cancelEdit}
-                            >
-                              <X className="mr-1 h-3 w-3" />
-                              취소
-                            </Button>
-                          </>
-                        )}
+                <Card key={section.id}>
+                  <CardHeader className="py-3 px-4">
+                    {/* 섹션 헤더 */}
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-medium">{section.title}</span>
                       </div>
 
-                      <Separator />
+                      {statusBadge(section.status)}
 
-                      {/* 콘텐츠 */}
-                      {isEditing ? (
-                        <textarea
-                          className="w-full min-h-[300px] rounded-md border border-input bg-transparent px-3 py-2 text-sm font-mono resize-y"
-                          value={editContent}
-                          onChange={(e) => setEditContent(e.target.value)}
-                        />
-                      ) : (
-                        <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap text-sm leading-relaxed">
-                          {section.content || '(내용 없음)'}
-                        </div>
-                      )}
-
-                      {/* Mermaid 다이어그램 */}
-                      {!isEditing && section.diagrams && (() => {
-                        try {
-                          const diagrams: string[] = JSON.parse(section.diagrams);
-                          if (diagrams.length === 0) return null;
-                          return (
-                            <div className="space-y-3 pt-2">
-                              <p className="text-xs font-medium text-muted-foreground">다이어그램</p>
-                              {diagrams.map((chart, idx) => (
-                                <MermaidDiagram key={idx} chart={chart} />
-                              ))}
-                            </div>
-                          );
-                        } catch {
-                          return null;
-                        }
-                      })()}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {(section.status === 'generated' || section.status === 'edited') && (
+                          <Button
+                            variant="ghost" size="icon" className="h-7 w-7"
+                            onClick={() => regenerateSection(section.id)}
+                            disabled={isRegenerating}
+                            title="재생성"
+                          >
+                            {isRegenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                          </Button>
+                        )}
+                        {section.content && (
+                          <Button
+                            variant="ghost" size="icon" className="h-7 w-7"
+                            onClick={() => setExpandedId(isExpanded ? null : section.id)}
+                          >
+                            {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </AccordionContent>
-                </AccordionItem>
+
+                    {/* 확장: 3탭 콘텐츠 뷰어 */}
+                    {isExpanded && section.content && (
+                      <div className="mt-3">
+                        <SectionContentViewer
+                          content={section.content}
+                          diagrams={section.diagrams}
+                          onSave={(newContent) => saveSection(section.id, newContent)}
+                        />
+                      </div>
+                    )}
+                  </CardHeader>
+                </Card>
               );
             })}
-          </Accordion>
-        </div>
+          </div>
+        </Tabs>
       )}
     </div>
   );

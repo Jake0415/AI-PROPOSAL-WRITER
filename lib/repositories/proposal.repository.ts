@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { getDb } from '@/lib/db/client';
 import {
   proposalDirections,
@@ -125,7 +125,20 @@ export const proposalRepository = {
       .where(eq(proposalSections.projectId, projectId));
   },
 
+  async getSectionByPath(projectId: string, sectionPath: string) {
+    const db = getDb();
+    const results = await db
+      .select()
+      .from(proposalSections)
+      .where(and(
+        eq(proposalSections.projectId, projectId),
+        eq(proposalSections.sectionPath, sectionPath),
+      ));
+    return results[0] ?? null;
+  },
+
   async updateSection(id: string, data: Partial<{
+    title: string;
     content: string;
     diagrams: unknown[];
     status: SectionStatus;
