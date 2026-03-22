@@ -79,39 +79,22 @@ export function Navbar() {
           </Link>
           <nav className="flex items-center gap-4 text-sm lg:gap-6">
             <Link href="/" className="transition-colors hover:text-foreground/80 text-foreground">
-              대시보드
+              제안서 작성
             </Link>
+            {isAdmin && (
+              <Link href="/admin/prompts" className="transition-colors hover:text-foreground/80 text-muted-foreground">
+                프롬프트 관리
+              </Link>
+            )}
             <Link href="/templates" className="transition-colors hover:text-foreground/80 text-muted-foreground">
-              템플릿
+              템플릿 관리
             </Link>
             <Link href="/guide" className="transition-colors hover:text-foreground/80 text-muted-foreground">
-              가이드
+              사용 가이드
             </Link>
             <Link href="/settings" className="transition-colors hover:text-foreground/80 text-muted-foreground">
               설정
             </Link>
-            {isAdmin && (
-              <>
-                <Link href="/admin" className="transition-colors hover:text-foreground/80 text-muted-foreground">
-                  관리
-                </Link>
-                <Link href="/admin/users" className="transition-colors hover:text-foreground/80 text-muted-foreground">
-                  사용자
-                </Link>
-                <Link href="/admin/customization" className="transition-colors hover:text-foreground/80 text-muted-foreground">
-                  브랜딩
-                </Link>
-                <Link href="/admin/audit" className="transition-colors hover:text-foreground/80 text-muted-foreground">
-                  감사 로그
-                </Link>
-                <Link href="/admin/data" className="transition-colors hover:text-foreground/80 text-muted-foreground">
-                  데이터 관리
-                </Link>
-                <Link href="/admin/prompts" className="transition-colors hover:text-foreground/80 text-muted-foreground">
-                  프롬프트
-                </Link>
-              </>
-            )}
           </nav>
         </div>
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
